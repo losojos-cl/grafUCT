@@ -1,0 +1,51 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+
+  <!-- Fondo del lienzo -->
+  <rect x="0" y="0" width="1080" height="1350" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+
+  <!-- ============ GRILLA DE COLUMNAS (12 col, ayuda de alineación) ============ -->
+  <g stroke="#dcdcdc" stroke-width="1">
+    <line x1="90" y1="0" x2="90" y2="1350"/>
+    <line x1="180" y1="0" x2="180" y2="1350"/>
+    <line x1="270" y1="0" x2="270" y2="1350"/>
+    <line x1="360" y1="0" x2="360" y2="1350"/>
+    <line x1="450" y1="0" x2="450" y2="1350"/>
+    <line x1="540" y1="0" x2="540" y2="1350"/>
+    <line x1="630" y1="0" x2="630" y2="1350"/>
+    <line x1="720" y1="0" x2="720" y2="1350"/>
+    <line x1="810" y1="0" x2="810" y2="1350"/>
+    <line x1="900" y1="0" x2="900" y2="1350"/>
+    <line x1="990" y1="0" x2="990" y2="1350"/>
+  </g>
+
+  <!-- ============ MÁRGENES LATERALES (5%, ≈54px) ============ -->
+  <rect x="0" y="0" width="54" height="1350" fill="#ff5a5a" opacity="0.12"/>
+  <rect x="1026" y="0" width="54" height="1350" fill="#ff5a5a" opacity="0.12"/>
+  <line x1="54" y1="0" x2="54" y2="1350" stroke="#ff2d2d" stroke-width="2" stroke-dasharray="6,6"/>
+  <line x1="1026" y1="0" x2="1026" y2="1350" stroke="#ff2d2d" stroke-width="2" stroke-dasharray="6,6"/>
+
+  <!-- ============ ZONA DE RECORTE SUPERIOR/INFERIOR (vista grid/miniatura) ============ -->
+  <rect x="0" y="0" width="1080" height="135" fill="#ffb300" opacity="0.15"/>
+  <rect x="0" y="1215" width="1080" height="135" fill="#ffb300" opacity="0.15"/>
+  <line x1="0" y1="135" x2="1080" y2="135" stroke="#e09a00" stroke-width="2" stroke-dasharray="6,6"/>
+  <line x1="0" y1="1215" x2="1080" y2="1215" stroke="#e09a00" stroke-width="2" stroke-dasharray="6,6"/>
+
+  <!-- ============ ÁREA SEGURA CENTRAL (texto, logo, CTA van aquí) ============ -->
+  <rect x="54" y="135" width="972" height="1080" fill="none" stroke="#00a86b" stroke-width="3"/>
+
+  <!-- Líneas guía centro -->
+  <line x1="540" y1="0" x2="540" y2="1350" stroke="#8888ff" stroke-width="1" stroke-dasharray="3,5"/>
+  <line x1="0" y1="675" x2="1080" y2="675" stroke="#8888ff" stroke-width="1" stroke-dasharray="3,5"/>
+
+  <!-- ============ ETIQUETAS ============ -->
+  <text x="30" y="30" font-size="20" fill="#000000" font-weight="bold">1080 × 1350 px — 4:5</text>
+
+  <text x="70" y="120" font-size="16" fill="#e09a00">Zona de recorte (grid/miniatura) — evitar texto clave aquí</text>
+  <text x="70" y="1245" font-size="16" fill="#e09a00">Zona de recorte inferior — evitar CTA o datos clave aquí</text>
+
+  <text x="70" y="165" font-size="16" fill="#00a86b" font-weight="bold">Área segura: título, texto, logo, CTA</text>
+
+  <text x="60" y="700" font-size="14" fill="#ff2d2d" transform="rotate(-90 60,700)">Margen lateral 5% ≈ 54px</text>
+  <text x="1020" y="700" font-size="14" fill="#ff2d2d" transform="rotate(-90 1020,700)">Margen lateral 5% ≈ 54px</text>
+
+</svg>
