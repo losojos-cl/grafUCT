@@ -1,0 +1,19 @@
+{
+  "name": "cartel-a3",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx serve ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "p5": "^2.3.2",
+    "p5.js-svg": "^1.6.0"
+  },
+  "devDependencies": {
+    "serve": "^14.2.6"
+  }
+}
