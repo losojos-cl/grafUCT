@@ -1,14 +1,9 @@
 // Presets de parámetros — localStorage + JSON portable.
-// Un preset guarda SOLO parámetros (la imagen no viaja):
-// mismo preset, otras imágenes.
-// v2: { v: 2, nombre, params: { celda, umbral, frontera, suavidad,
-//   semilla, modo, paletaIdx, tipoIdx, anim: {...}, prim: {...}, vista: {...} } }
-// v1 sigue cargando (se normaliza: modo 'campo'→'huella' + defaults).
+// Esquemas por propuesta: p1 (v2, ASCII) y p2 (v1, módulos).
+// La API de nivel superior ES el esquema p1 (compatibilidad total);
+// cada propuesta tiene además su ámbito: Presets.p1 / Presets.p2.
 
 const Presets = (() => {
-  const VERSION = 2;
-  const KEY = 'p1-presets';
-
   const DEFAULT_PRIM = {
     uPunto: 0.62, dotMax: 1.1,
     scanCada: 3, scanLen: 6, scanProb: 0.5,
@@ -30,7 +25,8 @@ const Presets = (() => {
 
   const num = (v, a, b) => typeof v === 'number' && v >= a && v <= b;
 
-  function validarBase(q) {
+  // ── Esquema p1 (v2; v1 se normaliza) ───────────────────
+  function validarBaseP1(q) {
     if (!num(q.celda, 1, 64)) return 'celda fuera de rango';
     if (!num(q.umbral, 0, 1)) return 'umbral fuera de rango';
     if (!num(q.frontera, 0, 1)) return 'frontera fuera de rango';
@@ -47,7 +43,7 @@ const Presets = (() => {
     return null;
   }
 
-  function validarPrim(p) {
+  function validarPrimP1(p) {
     if (!num(p.uPunto, 0, 1)) return 'prim.uPunto fuera de rango';
     if (!num(p.dotMax, 0, 3)) return 'prim.dotMax fuera de rango';
     if (!Number.isInteger(p.scanCada) || p.scanCada < 1 || p.scanCada > 16) return 'prim.scanCada inválido';
@@ -58,28 +54,28 @@ const Presets = (() => {
     return null;
   }
 
-  function validarVista(v) {
+  function validarVistaP1(v) {
     if (!num(v.z, 0.2, 8)) return 'vista.z fuera de rango';
     if (!num(v.ox, -1, 1)) return 'vista.ox fuera de rango';
     if (!num(v.oy, -1, 1)) return 'vista.oy fuera de rango';
     return null;
   }
 
-  function validar(p) {
+  function validarP1(p) {
     if (!p || typeof p !== 'object') return 'no es un objeto';
     if (p.v !== 1 && p.v !== 2) return `versión ${p.v} ≠ 1/2`;
     if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
     const q = p.params || {};
-    const err = validarBase(q);
+    const err = validarBaseP1(q);
     if (err) return err;
     if (p.v === 2) {
-      return validarPrim(q.prim || {}) || validarVista(q.vista || {});
+      return validarPrimP1(q.prim || {}) || validarVistaP1(q.vista || {});
     }
     return null;
   }
 
-  function normalizar(p) {
-    if (validar(p)) return null;
+  function normalizarP1(p) {
+    if (validarP1(p)) return null;
     if (p.v === 2) return p;
     const params = { ...p.params };
     if (params.modo === 'campo') params.modo = 'huella';
@@ -88,67 +84,92 @@ const Presets = (() => {
     return { v: 2, nombre: p.nombre, params };
   }
 
-  function leer() {
-    try {
-      const raw = store().getItem(KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(arr)) return [];
-      return arr.map(normalizar).filter(Boolean);
-    } catch (e) {
-      return [];
-    }
+  // ── Esquema p2 (v1; módulos) ───────────────────────────
+  function validarP2(p) {
+    if (!p || typeof p !== 'object') return 'no es un objeto';
+    if (p.v !== 1) return `versión ${p.v} ≠ 1`;
+    if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
+    const q = p.params || {};
+    if (!Number.isInteger(q.cols) || q.cols < 1 || q.cols > 24) return 'cols inválido';
+    if (!Number.isInteger(q.rows) || q.rows < 1 || q.rows > 24) return 'rows inválido';
+    if (!Number.isInteger(q.semilla) || q.semilla < 1) return 'semilla inválida';
+    if (!num(q.pad, 0, 0.6)) return 'pad fuera de rango';
+    if (!Number.isInteger(q.paletaIdx) || q.paletaIdx < 0) return 'paleta inválida';
+    return null;
   }
 
-  function escribir(arr) {
-    store().setItem(KEY, JSON.stringify(arr));
+  function normalizarP2(p) {
+    return validarP2(p) ? null : p;
   }
 
-  return {
-    VERSION,
-    DEFAULT_PRIM,
-    DEFAULT_VISTA,
-    validar,
-    normalizar,
-    listar() { return leer(); },
-    guardar(preset) {
-      const err = validar(preset);
-      if (err) return err;
-      const n = normalizar(preset);
-      const arr = leer().filter((p) => p.nombre !== n.nombre);
-      arr.push(n);
-      escribir(arr);
-      return null;
-    },
-    eliminar(nombre) {
-      escribir(leer().filter((p) => p.nombre !== nombre));
-    },
-    exportar() {
-      return JSON.stringify({ v: VERSION, presets: leer() }, null, 2);
-    },
-    importar(json) {
-      let doc;
+  // ── Factoría de ámbitos ────────────────────────────────
+  function crearAmbito(key, version, validarDoc, normalizarDoc) {
+    function leer() {
       try {
-        doc = JSON.parse(json);
+        const raw = store().getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) return [];
+        return arr.map(normalizarDoc).filter(Boolean);
       } catch (e) {
-        return { ok: 0, errores: ['JSON inválido'] };
+        return [];
       }
-      const lista = Array.isArray(doc) ? doc : doc.presets;
-      if (!Array.isArray(lista)) return { ok: 0, errores: ['formato inválido'] };
-      const arr = leer();
-      let ok = 0;
-      const errores = [];
-      for (const p of lista) {
-        const err = validar(p);
-        if (err) { errores.push(`${p && p.nombre ? p.nombre : '?'}: ${err}`); continue; }
-        const n = normalizar(p);
-        const i = arr.findIndex((q) => q.nombre === n.nombre);
-        if (i >= 0) arr[i] = n; else arr.push(n);
-        ok++;
-      }
-      escribir(arr);
-      return { ok, errores };
-    },
-  };
+    }
+
+    function escribir(arr) {
+      store().setItem(key, JSON.stringify(arr));
+    }
+
+    return {
+      VERSION: version,
+      validar: validarDoc,
+      normalizar: normalizarDoc,
+      listar() { return leer(); },
+      guardar(preset) {
+        const err = validarDoc(preset);
+        if (err) return err;
+        const n = normalizarDoc(preset);
+        const arr = leer().filter((p) => p.nombre !== n.nombre);
+        arr.push(n);
+        escribir(arr);
+        return null;
+      },
+      eliminar(nombre) {
+        escribir(leer().filter((p) => p.nombre !== nombre));
+      },
+      exportar() {
+        return JSON.stringify({ v: version, presets: leer() }, null, 2);
+      },
+      importar(json) {
+        let doc;
+        try {
+          doc = JSON.parse(json);
+        } catch (e) {
+          return { ok: 0, errores: ['JSON inválido'] };
+        }
+        const lista = Array.isArray(doc) ? doc : doc.presets;
+        if (!Array.isArray(lista)) return { ok: 0, errores: ['formato inválido'] };
+        const arr = leer();
+        let ok = 0;
+        const errores = [];
+        for (const p of lista) {
+          const err = validarDoc(p);
+          if (err) { errores.push(`${p && p.nombre ? p.nombre : '?'}: ${err}`); continue; }
+          const n = normalizarDoc(p);
+          const i = arr.findIndex((q) => q.nombre === n.nombre);
+          if (i >= 0) arr[i] = n; else arr.push(n);
+          ok++;
+        }
+        escribir(arr);
+        return { ok, errores };
+      },
+    };
+  }
+
+  const p1 = crearAmbito('p1-presets', 2, validarP1, normalizarP1);
+  const p2 = crearAmbito('p2-presets', 1, validarP2, normalizarP2);
+
+  // Nivel superior = esquema p1 (p1/sketch.js no cambia).
+  return { ...p1, DEFAULT_PRIM, DEFAULT_VISTA, p1, p2 };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Presets;

@@ -2,21 +2,94 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>P2 — Por definir</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2 — Módulo Generativo · A3</title>
   <style>
     @font-face {
       font-family: 'Terminal Grotesque';
       src: url('../lib/fonts/terminal-grotesque.otf') format('opentype');
       font-display: swap;
     }
-    body { margin: 0; background: #111; color: #fafafa; font-family: 'Terminal Grotesque', monospace;
-           min-height: 100vh; display: flex; flex-direction: column;
-           align-items: center; justify-content: center; gap: 16px; }
-    a { color: #8a8a8a; font-size: 13px; }
+    :root { --fondo: #111; --tinta: #fafafa; --suave: #8a8a8a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fondo); color: var(--tinta);
+           font-family: 'Terminal Grotesque', monospace; display: flex; gap: 24px;
+           justify-content: center; align-items: flex-start; padding: 24px; }
+    canvas { box-shadow: 0 0 40px rgba(0,0,0,.6);
+             width: auto !important; height: auto !important;
+             max-height: 92vh; max-width: 100%; }
+    aside { width: 250px; position: sticky; top: 24px; border: 1px solid #333;
+            padding: 18px; font-size: 12px; display: flex; flex-direction: column; gap: 14px; }
+    aside h1 { font-size: 13px; font-weight: normal; letter-spacing: 2px; margin: 0; }
+    aside a.indice { color: var(--suave); text-decoration: none; }
+    .fila { display: flex; flex-direction: column; gap: 4px; }
+    .fila label { color: var(--suave); display: flex; justify-content: space-between; }
+    select, input[type=number], input[type=text], button { font-family: 'Terminal Grotesque', monospace; font-size: 12px;
+      background: #1c1c1c; color: var(--tinta); border: 1px solid #444; padding: 6px; width: 100%; }
+    input[type=range] { width: 100%; }
+    button { cursor: pointer; }
+    button.principal { border-color: var(--tinta); padding: 10px; }
+    .hint { color: var(--suave); font-size: 11px; line-height: 1.7; }
+    hr { border: 0; border-top: 1px solid #333; width: 100%; margin: 2px 0; }
+    .seccion { color: var(--tinta); font-size: 12px; letter-spacing: 2px; }
+    #listaPresets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   </style>
 </head>
 <body>
-  <div>P2 — PROPUESTA POR DEFINIR</div>
-  <a href="../">← volver al índice</a>
+  <main id="lienzo"></main>
+  <aside>
+    <h1>P2 · MÓDULO GENERATIVO</h1>
+    <a class="indice" href="../">← índice</a>
+
+    <div class="fila">
+      <label>Paleta (C)</label>
+      <select id="selPaleta"></select>
+    </div>
+    <div class="seccion">RETÍCULA</div>
+    <div class="fila">
+      <label>Columnas <span id="vCols"></span></label>
+      <input id="inCols" type="range" min="2" max="16" step="1" value="10">
+    </div>
+    <div class="fila">
+      <label>Filas <span id="vRows"></span></label>
+      <input id="inRows" type="range" min="2" max="16" step="1" value="10">
+    </div>
+    <div class="fila">
+      <label>Aire <span id="vPad"></span></label>
+      <input id="inPad" type="range" min="0.04" max="0.4" step="0.02" value="0.16">
+    </div>
+    <div class="fila">
+      <label>Semilla (R regenera) <span id="vSemilla"></span></label>
+      <div style="display:flex; gap:8px;">
+        <input id="inSemilla" type="number" value="5" min="1" max="9999">
+        <button id="btnSemilla" style="width:auto;">↻</button>
+      </div>
+    </div>
+    <hr>
+    <div class="seccion">PRESETS</div>
+    <div class="fila">
+      <div style="display:flex; gap:8px;">
+        <input id="inPresetNombre" type="text" placeholder="nombre…" style="flex:1;">
+        <button id="btnGuardarPreset" style="width:auto;">💾</button>
+      </div>
+    </div>
+    <ul id="listaPresets"></ul>
+    <div class="fila">
+      <div style="display:flex; gap:8px;">
+        <button id="btnExportPresets" style="flex:1;">Exportar JSON</button>
+        <button id="btnImportPresets" style="flex:1;">Importar JSON</button>
+      </div>
+      <input id="inImportPresets" type="file" accept=".json,application/json" style="display:none;">
+    </div>
+    <button id="btnSVG" class="principal">Descargar SVG (S)</button>
+    <div class="hint">?paleta=N fija el tema por URL</div>
+  </aside>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <script src="../lib/p5.svg.min.js"></script>
+  <script src="../lib/tema.js"></script>
+  <script src="../lib/presets.js"></script>
+  <script src="modulo.js"></script>
+  <script src="sketch.js"></script>
 </body>
 </html>
