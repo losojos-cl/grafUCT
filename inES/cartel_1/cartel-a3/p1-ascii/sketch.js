@@ -23,6 +23,7 @@ const P = {
 
 const T = { t: 0, tz: 0 }; // reloj de animación (ticks + eje de ruido)
 const FPS_PREVIEW = 12; // techo al animar (canvas 2D lo sostiene)
+const ruido2 = (x, y) => noise(x, y); // ruido 2D para el errar de la frontera
 
 function setup() {
   Tema.init();
@@ -109,7 +110,7 @@ function estadoOptico() {
   }
   return {
     celda: P.anim.on ? P.celda * 2 : P.celda, // preview adaptativo
-    front: Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t),
+    front: Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t, ruido2),
     tz: T.tz,
     semilla: P.semilla,
   };
@@ -126,7 +127,7 @@ function draw() {
 function guardarSVG() {
   const o = {
     celda: P.celda,
-    front: Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t),
+    front: Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t, ruido2),
     tz: T.tz,
     semilla: P.semilla,
   };

@@ -51,9 +51,13 @@ const Ascii = (() => {
       return field(nx, ny, noise, tz);
     },
 
-    // Frontera efectiva con barrido: base + amp·sin(2π·t/periodo).
-    frontAt(base, amp, periodo, t) {
-      return Math.min(0.6, Math.max(0.05, base + amp * Math.sin((2 * Math.PI * t) / periodo)));
+    // Frontera efectiva con errar azaroso: base + amp·ruido(t).
+    // No es periódica (a diferencia del seno): deambula sin repetirse.
+    // periodo = escala temporal (mayor → errar más lento). Determinista.
+    frontAt(base, amp, periodo, t, noise) {
+      const rate = 4.8 / Math.max(1, periodo);
+      const w = (noise(t * rate + seed * 1.7, seed * 0.9) - 0.5) * 2; // -1..1
+      return Math.min(0.6, Math.max(0.05, base + amp * w));
     },
 
     // 0 = subtítulo legible … 1 = zona densa del lema.
