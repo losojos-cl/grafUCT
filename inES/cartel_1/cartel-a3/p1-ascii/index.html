@@ -10,7 +10,9 @@
     body { margin: 0; background: var(--fondo); color: var(--tinta);
            font-family: monospace; display: flex; gap: 24px;
            justify-content: center; align-items: flex-start; padding: 24px; }
-    canvas { box-shadow: 0 0 40px rgba(0,0,0,.6); max-height: 92vh; width: auto; }
+    canvas { box-shadow: 0 0 40px rgba(0,0,0,.6);
+            width: auto !important; height: auto !important;
+            max-height: 92vh; max-width: 100%; }
     aside { width: 250px; position: sticky; top: 24px; border: 1px solid #333;
             padding: 18px; font-size: 12px; display: flex; flex-direction: column; gap: 14px; }
     aside h1 { font-size: 13px; font-weight: normal; letter-spacing: 2px; margin: 0; }
@@ -78,6 +80,7 @@
     <hr>
     <div class="seccion">ANIMACIÓN</div>
     <button id="btnPlay">▶ Animar (Espacio)</button>
+    <div class="hint" id="indRes">preview full · export full</div>
     <div class="fila">
       <label>Deriva <span id="vVel"></span></label>
       <input id="inVel" type="range" min="0" max="0.3" step="0.005" value="0.05">

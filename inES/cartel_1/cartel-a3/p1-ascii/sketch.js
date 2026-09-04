@@ -141,6 +141,7 @@ function guardarSVG() {
 function setPlay(on) {
   P.anim.on = on;
   $('btnPlay').textContent = on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
+  syncIndRes();
   if (on) {
     frameRate(FPS_PREVIEW);
     loop();
@@ -148,6 +149,12 @@ function setPlay(on) {
     noLoop();
     redraw(); // congela el fotograma actual a resolución real
   }
+}
+
+function syncIndRes() {
+  $('indRes').textContent = P.anim.on
+    ? 'preview ×½ · export full'
+    : 'preview full · export full';
 }
 
 // ── Presets ────────────────────────────────────────────
@@ -348,6 +355,7 @@ function syncPanel() {
   $('inAmp').value = P.anim.amp;
   $('inPeriodo').value = P.anim.periodo;
   $('btnPlay').textContent = P.anim.on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
+  syncIndRes();
   syncEtiquetas();
 }
 
