@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P1 — Campo ASCII · A3</title>
+  <style>
+    :root { --fondo: #111; --tinta: #fafafa; --suave: #8a8a8a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fondo); color: var(--tinta);
+           font-family: monospace; display: flex; gap: 24px;
+           justify-content: center; align-items: flex-start; padding: 24px; }
+    canvas { box-shadow: 0 0 40px rgba(0,0,0,.6); max-height: 92vh; width: auto; }
+    aside { width: 250px; position: sticky; top: 24px; border: 1px solid #333;
+            padding: 18px; font-size: 12px; display: flex; flex-direction: column; gap: 14px; }
+    aside h1 { font-size: 13px; font-weight: normal; letter-spacing: 2px; margin: 0; }
+    aside a.indice { color: var(--suave); text-decoration: none; }
+    .fila { display: flex; flex-direction: column; gap: 4px; }
+    .fila label { color: var(--suave); display: flex; justify-content: space-between; }
+    select, input[type=number], button { font-family: monospace; font-size: 12px;
+      background: #1c1c1c; color: var(--tinta); border: 1px solid #444; padding: 6px; width: 100%; }
+    input[type=range] { width: 100%; }
+    input[type=file] { font-size: 11px; color: var(--suave); }
+    .modos { display: flex; gap: 12px; }
+    button { cursor: pointer; }
+    button.principal { border-color: var(--tinta); padding: 10px; }
+    .hint { color: var(--suave); font-size: 11px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <main id="lienzo"></main>
+  <aside>
+    <h1>P1 · CAMPO ASCII</h1>
+    <a class="indice" href="../">← índice</a>
+
+    <div class="fila">
+      <label>Paleta (C)</label>
+      <select id="selPaleta"></select>
+    </div>
+    <div class="fila">
+      <label>Tipografía (T)</label>
+      <select id="selTipo"></select>
+    </div>
+    <div class="fila">
+      <label>Celda <span id="vCelda"></span></label>
+      <input id="inCelda" type="range" min="5" max="16" step="0.5" value="9">
+    </div>
+    <div class="fila">
+      <label>Umbral <span id="vUmbral"></span></label>
+      <input id="inUmbral" type="range" min="0" max="0.8" step="0.01" value="0.35">
+    </div>
+    <div class="fila">
+      <label>Frontera <span id="vFrontera"></span></label>
+      <input id="inFrontera" type="range" min="0.05" max="0.6" step="0.01" value="0.30">
+    </div>
+    <div class="fila">
+      <label>Suavidad <span id="vSuavidad"></span></label>
+      <input id="inSuavidad" type="range" min="0.02" max="0.4" step="0.01" value="0.18">
+    </div>
+    <div class="fila">
+      <label>Semilla (R regenera)</label>
+      <div style="display:flex; gap:8px;">
+        <input id="inSemilla" type="number" value="1" min="1" max="9999">
+        <button id="btnSemilla" style="width:auto;">↻</button>
+      </div>
+    </div>
+    <div class="fila">
+      <label>Campo</label>
+      <div class="modos">
+        <label><input type="radio" name="modo" value="campo" checked> huella</label>
+        <label><input type="radio" name="modo" value="imagen"> imagen</label>
+      </div>
+      <input id="inArchivo" type="file" accept="image/*">
+    </div>
+    <button id="btnSVG" class="principal">Descargar SVG (S)</button>
+    <div class="hint">?paleta=N&tipo=M<br>fija el tema por URL</div>
+  </aside>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <script src="../lib/p5.svg.min.js"></script>
+  <script src="../lib/tema.js"></script>
+  <script src="ascii.js"></script>
+  <script src="sketch.js"></script>
+</body>
+</html>
