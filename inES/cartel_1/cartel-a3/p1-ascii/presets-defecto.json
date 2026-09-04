@@ -1,0 +1,73 @@
+{
+  "v": 2,
+  "presets": [
+    {
+      "v": 2,
+      "nombre": "retrato",
+      "params": {
+        "celda": 9,
+        "umbral": 0.32,
+        "frontera": 0.3,
+        "suavidad": 0.18,
+        "semilla": 3,
+        "modo": "retrato",
+        "paletaIdx": 0,
+        "tipoIdx": 0,
+        "anim": {
+          "on": false,
+          "vel": 0.05,
+          "amp": 0.06,
+          "periodo": 240
+        },
+        "prim": {
+          "uPunto": 0.62,
+          "dotMax": 1.1,
+          "scanCada": 3,
+          "scanLen": 6,
+          "scanProb": 0.5,
+          "sqDens": 0.08,
+          "sqMax": 0.5
+        },
+        "vista": {
+          "z": 1,
+          "ox": 0,
+          "oy": 0
+        }
+      }
+    },
+    {
+      "v": 2,
+      "nombre": "version_01",
+      "params": {
+        "celda": 6.5,
+        "umbral": 0.24,
+        "frontera": 0.6,
+        "suavidad": 0.18,
+        "semilla": 4526,
+        "modo": "retrato",
+        "paletaIdx": 2,
+        "tipoIdx": 0,
+        "anim": {
+          "on": false,
+          "vel": 0.06,
+          "amp": 0.25,
+          "periodo": 240
+        },
+        "prim": {
+          "uPunto": 0.75,
+          "dotMax": 0.75,
+          "scanCada": 1,
+          "scanLen": 3,
+          "scanProb": 0.2,
+          "sqDens": 0.2,
+          "sqMax": 0.6
+        },
+        "vista": {
+          "z": 2.5,
+          "ox": 0.14,
+          "oy": 0.01
+        }
+      }
+    }
+  ]
+}

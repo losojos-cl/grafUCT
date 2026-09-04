@@ -39,16 +39,25 @@ function setup() {
   cablearPanel();
   syncPanel();
   renderListaPresets();
-  if (!Presets.listar().length) {
-    // Primera vez: preset "retrato" calibrado al placeholder.
-    const d = estadoActual('retrato');
-    d.params.modo = 'retrato';
-    d.params.semilla = 3;
-    d.params.umbral = 0.32;
-    Presets.guardar(d);
-    renderListaPresets();
-    aplicarEstado(d);
-  }
+  sembrarDefecto();
+}
+
+// Presets de fábrica (repo): si no hay nada guardado, se importan
+// y se aplica "version_01" como estado por defecto.
+function sembrarDefecto() {
+  if (Presets.listar().length) return;
+  fetch('presets-defecto.json')
+    .then((r) => { if (!r.ok) throw new Error('sin defecto'); return r.text(); })
+    .then((txt) => {
+      if (Presets.listar().length) return; // alguien guardó mientras tanto
+      const res = Presets.importar(txt);
+      renderListaPresets();
+      const lista = Presets.listar();
+      const alvo = lista.find((p) => p.nombre === 'version_01') || lista[0];
+      if (alvo) aplicarEstado(alvo);
+      print(`Presets de defecto: ${res.ok} importados · errores: ${res.errores.length}`);
+    })
+    .catch(() => print('Sin presets-defecto.json: se parte vacío'));
 }
 
 // Rutina única de dibujo sobre cualquier renderer (2D visible o SVG oculto).
