@@ -1,0 +1,48 @@
+# GitHub Pages: publica SOLO inES/cartel_1/cartel-a3 como raíz del sitio.
+# URL resultante: https://nicolasvenegas.github.io/grafUCT/ (índice de propuestas).
+# Requiere (una vez, manual): Settings → Pages → Source = GitHub Actions.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'inES/cartel_1/cartel-a3/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preparar sitio (sin node_modules)
+        run: |
+          mkdir -p site
+          rsync -av --exclude 'node_modules' --exclude 'package.json' --exclude 'package-lock.json' inES/cartel_1/cartel-a3/ site/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
