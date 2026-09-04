@@ -5,10 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>P1 — Campo ASCII · A3</title>
   <style>
+    @font-face {
+      font-family: 'Terminal Grotesque';
+      src: url('../lib/fonts/terminal-grotesque.otf') format('opentype');
+      font-display: swap;
+    }
     :root { --fondo: #111; --tinta: #fafafa; --suave: #8a8a8a; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--fondo); color: var(--tinta);
-           font-family: monospace; display: flex; gap: 24px;
+           font-family: 'Terminal Grotesque', monospace; display: flex; gap: 24px;
            justify-content: center; align-items: flex-start; padding: 24px; }
     canvas { box-shadow: 0 0 40px rgba(0,0,0,.6);
             width: auto !important; height: auto !important;
@@ -19,7 +24,7 @@
     aside a.indice { color: var(--suave); text-decoration: none; }
     .fila { display: flex; flex-direction: column; gap: 4px; }
     .fila label { color: var(--suave); display: flex; justify-content: space-between; }
-    select, input[type=number], button { font-family: monospace; font-size: 12px;
+    select, input[type=number], input[type=text], button { font-family: 'Terminal Grotesque', monospace; font-size: 12px;
       background: #1c1c1c; color: var(--tinta); border: 1px solid #444; padding: 6px; width: 100%; }
     input[type=range] { width: 100%; }
     input[type=file] { font-size: 11px; color: var(--suave); }
