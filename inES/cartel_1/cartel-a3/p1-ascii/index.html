@@ -77,10 +77,55 @@
     <div class="fila">
       <label>Campo</label>
       <div class="modos">
-        <label><input type="radio" name="modo" value="campo" checked> huella</label>
+        <label><input type="radio" name="modo" value="huella" checked> huella</label>
+        <label><input type="radio" name="modo" value="retrato"> retrato</label>
         <label><input type="radio" name="modo" value="imagen"> imagen</label>
       </div>
       <input id="inArchivo" type="file" accept="image/*">
+    </div>
+    <hr>
+    <div class="seccion">PRIMITIVOS</div>
+    <div class="fila">
+      <label>Umbral punto <span id="vUPunto"></span></label>
+      <input id="inUPunto" type="range" min="0.3" max="0.9" step="0.01" value="0.62">
+    </div>
+    <div class="fila">
+      <label>Punto max <span id="vDotMax"></span></label>
+      <input id="inDotMax" type="range" min="0.3" max="1.6" step="0.05" value="1.1">
+    </div>
+    <div class="fila">
+      <label>Scan cada <span id="vScanCada"></span></label>
+      <input id="inScanCada" type="range" min="1" max="6" step="1" value="3">
+    </div>
+    <div class="fila">
+      <label>Scan largo <span id="vScanLen"></span></label>
+      <input id="inScanLen" type="range" min="2" max="14" step="1" value="6">
+    </div>
+    <div class="fila">
+      <label>Scan prob <span id="vScanProb"></span></label>
+      <input id="inScanProb" type="range" min="0" max="1" step="0.05" value="0.5">
+    </div>
+    <div class="fila">
+      <label>Cuad densidad <span id="vSqDens"></span></label>
+      <input id="inSqDens" type="range" min="0" max="0.5" step="0.01" value="0.08">
+    </div>
+    <div class="fila">
+      <label>Cuad max <span id="vSqMax"></span></label>
+      <input id="inSqMax" type="range" min="0.2" max="1.2" step="0.05" value="0.5">
+    </div>
+    <hr>
+    <div class="seccion">VISTA</div>
+    <div class="fila">
+      <label>Zoom <span id="vZoom"></span></label>
+      <input id="inZoom" type="range" min="0.5" max="3" step="0.05" value="1">
+    </div>
+    <div class="fila">
+      <label>Despl X <span id="vOx"></span></label>
+      <input id="inOx" type="range" min="-0.5" max="0.5" step="0.01" value="0">
+    </div>
+    <div class="fila">
+      <label>Despl Y <span id="vOy"></span></label>
+      <input id="inOy" type="range" min="-0.5" max="0.5" step="0.01" value="0">
     </div>
     <hr>
     <div class="seccion">ANIMACIÓN</div>

@@ -1,5 +1,6 @@
 // P1 — Campo ASCII a sangre completa, formato A3.
-// Subtítulo legible arriba → disolución → trama densa del lema.
+// Subtítulo legible arriba → disolución → primitivos (puntos / lema /
+// scanlines / cuadraditos) modulados por el campo (huella, retrato o imagen).
 // Colores y fuente SIEMPRE vía Tema (roles); ?paleta=N&tipo=M por URL.
 // Atajos: S guardar · C paleta · T tipo · R semilla · Espacio play/pausa.
 //
@@ -17,8 +18,10 @@ const P = {
   frontera: 0.30,
   suavidad: 0.18,
   semilla: 1,
-  modo: 'campo', // 'campo' | 'imagen'
+  modo: 'huella', // 'huella' | 'retrato' | 'imagen'
   anim: { on: false, vel: 0.05, amp: 0.06, periodo: 240 },
+  prim: { uPunto: 0.62, dotMax: 1.1, scanCada: 3, scanLen: 6, scanProb: 0.5, sqDens: 0.08, sqMax: 0.5 },
+  vista: { z: 1, ox: 0, oy: 0 },
 };
 
 const T = { t: 0, tz: 0 }; // reloj de animación (ticks + eje de ruido)
@@ -30,9 +33,22 @@ function setup() {
   const cnv = createCanvas(W, H); // 2D: preview rápido
   cnv.parent('lienzo');
   noLoop();
+  Ascii.setSeed(P.semilla);
+  Ascii.setCampo(P.modo);
+  Ascii.setVista(P.vista);
   cablearPanel();
   syncPanel();
   renderListaPresets();
+  if (!Presets.listar().length) {
+    // Primera vez: preset "retrato" calibrado al placeholder.
+    const d = estadoActual('retrato');
+    d.params.modo = 'retrato';
+    d.params.semilla = 3;
+    d.params.umbral = 0.32;
+    Presets.guardar(d);
+    renderListaPresets();
+    aplicarEstado(d);
+  }
 }
 
 // Rutina única de dibujo sobre cualquier renderer (2D visible o SVG oculto).
@@ -47,7 +63,9 @@ function renderar(g, o) {
     fill: (c) => g.fill(c),
     textSize: (s) => g.textSize(s),
     text: (t, x, y) => g.text(t, x, y),
-  } : { background, fill, noStroke, textFont, textAlign, textSize, text };
+    circle: (x, y, d) => g.circle(x, y, d),
+    rect: (x, y, w, h) => g.rect(x, y, w, h),
+  } : { background, fill, noStroke, textFont, textAlign, textSize, text, circle, rect };
 
   noiseSeed(o.semilla);
   R.background(Tema.rol('fondo'));
@@ -58,20 +76,60 @@ function renderar(g, o) {
   const cols = Math.floor(W / o.celda);
   const rows = Math.floor(H / o.celda);
   const n = (x, y) => noise(x, y, o.tz);
+  const pr = P.prim;
   let nodos = 0;
 
-  // ── Zona densa: caracteres del lema modulados por el campo ──
+  // ── Zona densa: cuadraditos + puntos + lema según banda ──
   for (let r = 0; r < rows; r++) {
     const ny = (r + 0.5) / rows;
     const y = (r + 0.5) * o.celda;
     for (let c = 0; c < cols; c++) {
       const nx = (c + 0.5) / cols;
+      const x = (c + 0.5) * o.celda;
       const v = Ascii.sample(nx, ny, n, o.tz);
+
+      // Cuadraditos dispersos (campo bajo, adicional a lo demás).
+      if (v < Ascii.SQ_V && Ascii.hash(c + 57, r) < pr.sqDens) {
+        const s = o.celda * pr.sqMax * (0.3 + 0.7 * Ascii.hash(c, r + 91));
+        R.fill(Tema.rol('profundo'));
+        R.rect(x - s / 2, y - s / 2, s, s);
+        nodos++;
+      }
+
       const d = Ascii.dissolve(ny, v, o.front, P.suavidad);
       if (d < P.umbral) continue;
+
+      // Puntos (cara): diámetro ∝ campo.
+      if (v >= pr.uPunto) {
+        const dia = o.celda * pr.dotMax * (0.25 + 0.75 * v);
+        if (dia < 0.5) continue;
+        R.fill(Tema.rol('tinta'));
+        R.circle(x, y, dia);
+        nodos++;
+        continue;
+      }
+
+      // Lema (trama textual).
       R.fill(v > 0.66 ? Tema.rol('tinta') : Tema.rol('suave'));
       R.textSize(o.celda * (0.4 + v * 0.75));
-      R.text(Ascii.mottoChar(c, r), (c + 0.5) * o.celda, y);
+      R.text(Ascii.mottoChar(c, r), x, y);
+      nodos++;
+    }
+  }
+
+  // ── Scanlines: segmentos horizontales fragmentados ──
+  R.fill(Tema.rol('suave'));
+  for (let r2 = 0; r2 < rows; r2 += pr.scanCada) {
+    const ny = (r2 + 0.5) / rows;
+    const y = (r2 + 0.5) * o.celda;
+    for (let c = 0; c < cols; c++) {
+      const nx = (c + 0.5) / cols;
+      const v = Ascii.sample(nx, ny, n, o.tz);
+      if (v < Ascii.LINE_V0 || v > Ascii.LINE_V1) continue;
+      if (Ascii.hash(c, r2 * 5 + 1) > pr.scanProb) continue;
+      const lenPx = o.celda * (1 + Ascii.hash(c * 3 + 7, r2) * pr.scanLen);
+      const lw = Math.max(1, o.celda * 0.16);
+      R.rect((c + 0.5) * o.celda, y - lw / 2, lenPx, lw);
       nodos++;
     }
   }
@@ -158,7 +216,7 @@ function syncIndRes() {
     : 'preview full · export full';
 }
 
-// ── Presets ────────────────────────────────────────────
+// ── Presets (v2; v1 se normaliza al cargar) ────────────
 function estadoActual(nombre) {
   return {
     v: Presets.VERSION,
@@ -173,14 +231,16 @@ function estadoActual(nombre) {
       paletaIdx: Tema.paletaIdx,
       tipoIdx: Tema.tipoIdx,
       anim: { ...P.anim },
+      prim: { ...P.prim },
+      vista: { ...P.vista },
     },
   };
 }
 
 function aplicarEstado(est) {
-  const err = Presets.validar(est);
-  if (err) { print(`Preset “${est && est.nombre}” inválido: ${err}`); return; }
-  const q = est.params;
+  const q0 = Presets.normalizar(est);
+  if (!q0) { print(`Preset “${est && est.nombre}” inválido`); return; }
+  const q = q0.params;
   P.celda = q.celda;
   P.umbral = q.umbral;
   P.frontera = q.frontera;
@@ -188,15 +248,23 @@ function aplicarEstado(est) {
   P.semilla = q.semilla;
   P.modo = q.modo;
   P.anim = { ...q.anim };
+  P.prim = { ...q.prim };
+  P.vista = { ...q.vista };
   Tema.setPaleta(q.paletaIdx);
   Tema.setTipo(q.tipoIdx);
   Ascii.setSeed(q.semilla);
-  if (q.modo === 'campo') Ascii.clearImage();
+  Ascii.setVista(q.vista);
+  if (q.modo === 'imagen') {
+    if (!Ascii.hasImage()) print('Preset en modo imagen pero sin imagen cargada');
+  } else {
+    Ascii.clearImage();
+    Ascii.setCampo(q.modo);
+  }
   document.querySelector(`input[name=modo][value=${q.modo}]`).checked = true;
   syncPanel();
   setPlay(P.anim.on);
   if (!P.anim.on) redraw();
-  print(`Preset aplicado: “${est.nombre}”`);
+  print(`Preset aplicado: “${q0.nombre}”`);
 }
 
 function renderListaPresets() {
@@ -247,13 +315,41 @@ function cablearPanel() {
   liga('inFrontera', 'frontera');
   liga('inSuavidad', 'suavidad');
 
+  const ligaPrim = (id, clave) => {
+    $(id).oninput = (e) => { P.prim[clave] = +e.target.value; syncEtiquetas(); redraw(); };
+  };
+  ligaPrim('inUPunto', 'uPunto');
+  ligaPrim('inDotMax', 'dotMax');
+  ligaPrim('inScanCada', 'scanCada');
+  ligaPrim('inScanLen', 'scanLen');
+  ligaPrim('inScanProb', 'scanProb');
+  ligaPrim('inSqDens', 'sqDens');
+  ligaPrim('inSqMax', 'sqMax');
+
+  const ligaVista = (id, clave) => {
+    $(id).oninput = (e) => {
+      P.vista[clave] = +e.target.value;
+      Ascii.setVista(P.vista);
+      syncEtiquetas();
+      redraw();
+    };
+  };
+  ligaVista('inZoom', 'z');
+  ligaVista('inOx', 'ox');
+  ligaVista('inOy', 'oy');
+
   $('inSemilla').onchange = (e) => { fijaSemilla(+e.target.value || 1); };
   $('btnSemilla').onclick = () => fijaSemilla(Math.floor(Math.random() * 9999) + 1);
 
   document.querySelectorAll('input[name=modo]').forEach((radio) => {
     radio.onchange = (e) => {
       P.modo = e.target.value;
-      if (P.modo === 'campo') Ascii.clearImage();
+      if (P.modo === 'imagen') {
+        if (!Ascii.hasImage()) print('Modo imagen: carga un archivo');
+      } else {
+        Ascii.clearImage();
+        Ascii.setCampo(P.modo);
+      }
       redraw();
     };
   });
@@ -342,6 +438,16 @@ function syncEtiquetas() {
   $('vVel').textContent = P.anim.vel.toFixed(3);
   $('vAmp').textContent = P.anim.amp.toFixed(2);
   $('vPeriodo').textContent = P.anim.periodo;
+  $('vUPunto').textContent = P.prim.uPunto.toFixed(2);
+  $('vDotMax').textContent = P.prim.dotMax.toFixed(2);
+  $('vScanCada').textContent = P.prim.scanCada;
+  $('vScanLen').textContent = P.prim.scanLen;
+  $('vScanProb').textContent = P.prim.scanProb.toFixed(2);
+  $('vSqDens').textContent = P.prim.sqDens.toFixed(2);
+  $('vSqMax').textContent = P.prim.sqMax.toFixed(2);
+  $('vZoom').textContent = P.vista.z.toFixed(2);
+  $('vOx').textContent = P.vista.ox.toFixed(2);
+  $('vOy').textContent = P.vista.oy.toFixed(2);
 }
 
 function syncPanel() {
@@ -355,6 +461,17 @@ function syncPanel() {
   $('inVel').value = P.anim.vel;
   $('inAmp').value = P.anim.amp;
   $('inPeriodo').value = P.anim.periodo;
+  $('inUPunto').value = P.prim.uPunto;
+  $('inDotMax').value = P.prim.dotMax;
+  $('inScanCada').value = P.prim.scanCada;
+  $('inScanLen').value = P.prim.scanLen;
+  $('inScanProb').value = P.prim.scanProb;
+  $('inSqDens').value = P.prim.sqDens;
+  $('inSqMax').value = P.prim.sqMax;
+  $('inZoom').value = P.vista.z;
+  $('inOx').value = P.vista.ox;
+  $('inOy').value = P.vista.oy;
+  document.querySelector(`input[name=modo][value=${P.modo}]`).checked = true;
   $('btnPlay').textContent = P.anim.on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
   syncIndRes();
   syncEtiquetas();

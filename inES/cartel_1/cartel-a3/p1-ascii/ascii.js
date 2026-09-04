@@ -8,8 +8,14 @@ const Ascii = (() => {
   // Subtítulo del afiche (zona superior legible). Fijo en código.
   const SUBTITULO = 'TERCERA ENCUESTA DE BRECHAS Y DESIGUALDADES DE GÉNERO UNIVERSIDAD CATÓLICA DE TEMUCO';
 
+  // Bandas de primitivos (zona densa): scanlines en [LINE_V0, LINE_V1],
+  // cuadraditos bajo SQ_V, puntos sobre uPunto (parámetro), lema entremedio.
+  const LINE_V0 = 0.12, LINE_V1 = 0.55, SQ_V = 0.12;
+
   let seed = 1;
   let img = null; // { data: array 0..255, w, h }
+  let campo = 'huella'; // 'huella' | 'retrato' (la imagen manda si hay)
+  let vista = { z: 1, ox: 0, oy: 0 }; // encuadre del muestreo
 
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
   const smooth = (a, b, x) => {
@@ -36,19 +42,46 @@ const Ascii = (() => {
     return clamp01(img.data[y * img.w + x] / 255);
   }
 
+  // Masa placeholder de retrato: elipse densa a la derecha-centro con
+  // borde ruidoso + degradado a la izquierda. Para calibrar sin foto.
+  function retrato(nx, ny, noise, tz = 0) {
+    const cx = 0.62, cy = 0.42, rx = 0.20, ry = 0.30;
+    const ex = (nx - cx) / rx, ey = (ny - cy) / ry;
+    const e = ex * ex + ey * ey;
+    const borde = e + (noise(nx * 4 + seed, ny * 4, tz * 0.7) - 0.5) * 1.1;
+    const masa = 1 - smooth(0.45, 1.25, borde);
+    const grano = noise(nx * 9 - seed * 0.4, ny * 9, tz);
+    return clamp01(masa * (0.30 + 0.70 * grano));
+  }
+
   return {
     MOTTO,
     SUBTITULO,
+    LINE_V0,
+    LINE_V1,
+    SQ_V,
     get seed() { return seed; },
     setSeed(s) { seed = s; },
+    get campo() { return campo; },
+    setCampo(t) { if (t === 'huella' || t === 'retrato') campo = t; },
+    get vista() { return { ...vista }; },
+    setVista(v) {
+      if (typeof v.z === 'number' && v.z > 0) vista.z = v.z;
+      if (typeof v.ox === 'number') vista.ox = v.ox;
+      if (typeof v.oy === 'number') vista.oy = v.oy;
+    },
     hasImage() { return img !== null; },
     setImage(data, w, h) { img = { data, w, h }; },
     clearImage() { img = null; },
 
-    // Valor del campo 0..1 (imagen si hay, si no procedural con deriva tz).
+    // Valor del campo 0..1: imagen si hay, si no procedural (huella/retrato
+    // con deriva tz). La vista (zoom/pan) se aplica antes de muestrear.
     sample(nx, ny, noise, tz = 0) {
-      if (img) return sampleImage(nx, ny);
-      return field(nx, ny, noise, tz);
+      const qx = 0.5 + (nx - 0.5) / vista.z + vista.ox;
+      const qy = 0.5 + (ny - 0.5) / vista.z + vista.oy;
+      if (img) return sampleImage(qx, qy);
+      if (campo === 'retrato') return retrato(qx, qy, noise, tz);
+      return field(qx, qy, noise, tz);
     },
 
     // Frontera efectiva con errar azaroso: base + amp·ruido(t).
