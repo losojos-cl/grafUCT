@@ -5,22 +5,8 @@
 const Ascii = (() => {
   const MOTTO = 'LOS DATOS NO SON NEUTROS: MUESTRAN LO QUE DECIDIMOS MEDIR. ';
 
-  // Mapa de teclado (zona superior): [etiqueta, xFrac, yFrac].
-  // Fracciones del formato; el escalonado imita la referencia.
-  const KEYBOARD = [
-    [['esc', 0.30, 0.055], ['F1', 0.41, 0.055], ['F2', 0.46, 0.055], ['F4', 0.52, 0.055],
-     ['F5', 0.57, 0.055], ['F6', 0.62, 0.055], ['F7', 0.67, 0.055], ['F8', 0.72, 0.055]],
-    [['≤', 0.31, 0.095], ['§', 0.345, 0.095], ['!', 0.40, 0.095], ['"', 0.45, 0.095],
-     ['#', 0.50, 0.095], ['$', 0.55, 0.095], ['%', 0.60, 0.095], ['&', 0.65, 0.095],
-     ['/', 0.70, 0.095], ['(', 0.75, 0.095]],
-    [['Q', 0.36, 0.135], ['W', 0.41, 0.135], ['E', 0.46, 0.135], ['R', 0.51, 0.135],
-     ['T', 0.56, 0.135], ['Y', 0.61, 0.135], ['U', 0.66, 0.135], ['I', 0.71, 0.135]],
-    [['A', 0.375, 0.175], ['S', 0.425, 0.175], ['D', 0.475, 0.175], ['F', 0.525, 0.175],
-     ['G', 0.575, 0.175], ['H', 0.625, 0.175], ['J', 0.675, 0.175], ['K', 0.725, 0.175]],
-    [['Z', 0.40, 0.215], ['X', 0.45, 0.215], ['C', 0.50, 0.215], ['V', 0.55, 0.215],
-     ['B', 0.60, 0.215], ['N', 0.65, 0.215], ['M', 0.70, 0.215]],
-    [['space', 0.55, 0.27]],
-  ];
+  // Subtítulo del afiche (zona superior legible). Fijo en código.
+  const SUBTITULO = 'TERCERA ENCUESTA DE BRECHAS Y DESIGUALDADES DE GÉNERO UNIVERSIDAD CATÓLICA DE TEMUCO';
 
   let seed = 1;
   let img = null; // { data: array 0..255, w, h }
@@ -52,7 +38,7 @@ const Ascii = (() => {
 
   return {
     MOTTO,
-    KEYBOARD,
+    SUBTITULO,
     get seed() { return seed; },
     setSeed(s) { seed = s; },
     hasImage() { return img !== null; },
@@ -70,25 +56,37 @@ const Ascii = (() => {
       return Math.min(0.6, Math.max(0.05, base + amp * Math.sin((2 * Math.PI * t) / periodo)));
     },
 
-    // 0 = tecla legible … 1 = zona densa del lema.
+    // 0 = subtítulo legible … 1 = zona densa del lema.
     dissolve(ny, v, front, soft) {
       return smooth(front - soft, front + soft, ny * 0.55 + v * 0.55);
     },
 
-    // Etiquetas de teclado mapeadas a celdas de una grilla cols×rows.
-    keyboardSlots(cols, rows) {
-      const seen = new Set();
-      const out = [];
-      for (const row of KEYBOARD) {
-        for (const [t, xf, yf] of row) {
-          const c = Math.round(xf * (cols - 1));
-          const r = Math.round(yf * (rows - 1));
-          const k = c + ':' + r;
-          if (seen.has(k)) continue;
-          seen.add(k);
-          out.push({ c, r, t });
+    // Subtítulo fluyendo en la grilla superior: word-wrap codicioso
+    // (sin partir palabras), centrado por línea. → [{ c, r, ch }]
+    subtitleSlots(cols, rows) {
+      const margin = Math.max(2, Math.floor(cols * 0.08));
+      const usable = cols - margin * 2;
+      const words = SUBTITULO.split(' ');
+      const lines = [];
+      let line = '';
+      for (const w of words) {
+        const cand = line ? line + ' ' + w : w;
+        if (cand.length <= usable) {
+          line = cand;
+        } else {
+          if (line) lines.push(line);
+          line = w;
         }
       }
+      if (line) lines.push(line);
+      const out = [];
+      const r0 = Math.max(2, Math.round(rows * 0.03));
+      lines.forEach((ln, i) => {
+        const start = margin + Math.floor((usable - ln.length) / 2);
+        [...ln].forEach((ch, k) => {
+          out.push({ c: start + k, r: r0 + i, ch });
+        });
+      });
       return out;
     },
 

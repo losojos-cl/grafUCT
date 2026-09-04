@@ -1,5 +1,5 @@
 // P1 — Campo ASCII a sangre completa, formato A3.
-// Teclado literal arriba → disolución → trama densa del lema.
+// Subtítulo legible arriba → disolución → trama densa del lema.
 // Colores y fuente SIEMPRE vía Tema (roles); ?paleta=N&tipo=M por URL.
 // Atajos: S guardar · C paleta · T tipo · R semilla · Espacio play/pausa.
 //
@@ -75,19 +75,19 @@ function renderar(g, o) {
     }
   }
 
-  // ── Zona teclado: etiquetas legibles + desintegración en la frontera ──
+  // ── Zona subtítulo: legible + desintegración en la frontera ──
   R.fill(Tema.rol('tinta'));
-  for (const s of Ascii.keyboardSlots(cols, rows)) {
+  R.textSize(o.celda);
+  for (const s of Ascii.subtitleSlots(cols, rows)) {
     const nx = (s.c + 0.5) / cols;
     const ny = (s.r + 0.5) / rows;
     const v = Ascii.sample(nx, ny, n, o.tz);
     const d = Ascii.dissolve(ny, v, o.front, P.suavidad);
     if (d > P.umbral) continue;
-    // Cerca de la frontera algunas teclas ya se pierden (determinista).
+    // Cerca de la frontera algunas letras ya se pierden (determinista).
     const z0 = P.umbral * 0.55;
     if (d > z0 && Ascii.hash(s.c, s.r) < (d - z0) / (P.umbral - z0)) continue;
-    R.textSize(o.celda * (s.t.length > 2 ? 0.7 : 0.95));
-    R.text(s.t, (s.c + 0.5) * o.celda, (s.r + 0.5) * o.celda);
+    R.text(s.ch, (s.c + 0.5) * o.celda, (s.r + 0.5) * o.celda);
     nodos++;
   }
 
