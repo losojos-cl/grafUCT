@@ -1,7 +1,8 @@
 // P1 — Campo ASCII a sangre completa, formato A3.
 // Teclado literal arriba → disolución → trama densa del lema.
 // Colores y fuente SIEMPRE vía Tema (roles); ?paleta=N&tipo=M por URL.
-// Atajos: S guardar · C paleta · T tipo · R semilla.
+// Atajos: S guardar · C paleta · T tipo · R semilla · Espacio play/pausa.
+// Animación (deriva + barrido) vive en pantalla; el SVG exporta el fotograma visible.
 
 const MM_TO_PT = 72 / 25.4;
 const W = 297 * MM_TO_PT; // ≈ 841.89
@@ -14,7 +15,11 @@ const P = {
   suavidad: 0.18,
   semilla: 1,
   modo: 'campo', // 'campo' | 'imagen'
+  anim: { on: false, vel: 0.05, amp: 0.06, periodo: 240 },
 };
+
+const T = { t: 0, tz: 0 }; // reloj de animación (ticks + eje de ruido)
+const FPS_TROTTLE = 6; // redibujados/segundo al animar (nodos SVG = costo)
 
 function setup() {
   Tema.init();
@@ -23,9 +28,16 @@ function setup() {
   noLoop();
   cablearPanel();
   syncPanel();
+  renderListaPresets();
 }
 
 function draw() {
+  if (P.anim.on) {
+    T.t++;
+    T.tz = T.t * P.anim.vel;
+  }
+  const front = Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t);
+
   noiseSeed(P.semilla);
   background(Tema.rol('fondo'));
   textFont(Tema.tipo.stack);
@@ -34,7 +46,7 @@ function draw() {
 
   const cols = Math.floor(W / P.celda);
   const rows = Math.floor(H / P.celda);
-  const n = (x, y) => noise(x, y);
+  const n = (x, y) => noise(x, y, T.tz);
   let nodos = 0;
 
   // ── Zona densa: caracteres del lema modulados por el campo ──
@@ -43,8 +55,8 @@ function draw() {
     const y = (r + 0.5) * P.celda;
     for (let c = 0; c < cols; c++) {
       const nx = (c + 0.5) / cols;
-      const v = Ascii.sample(nx, ny, n);
-      const d = Ascii.dissolve(ny, v, P.frontera, P.suavidad);
+      const v = Ascii.sample(nx, ny, n, T.tz);
+      const d = Ascii.dissolve(ny, v, front, P.suavidad);
       if (d < P.umbral) continue;
       fill(v > 0.66 ? Tema.rol('tinta') : Tema.rol('suave'));
       textSize(P.celda * (0.4 + v * 0.75));
@@ -58,8 +70,8 @@ function draw() {
   for (const s of Ascii.keyboardSlots(cols, rows)) {
     const nx = (s.c + 0.5) / cols;
     const ny = (s.r + 0.5) / rows;
-    const v = Ascii.sample(nx, ny, n);
-    const d = Ascii.dissolve(ny, v, P.frontera, P.suavidad);
+    const v = Ascii.sample(nx, ny, n, T.tz);
+    const d = Ascii.dissolve(ny, v, front, P.suavidad);
     if (d > P.umbral) continue;
     // Cerca de la frontera algunas teclas ya se pierden (determinista).
     const z0 = P.umbral * 0.55;
@@ -77,7 +89,92 @@ function draw() {
     nodos++;
   }
 
-  print(`P1 · ${cols}×${rows} celdas · ${nodos} nodos · paleta “${Tema.paleta.nombre}” · ${Tema.tipo.nombre}`);
+  const extra = P.anim.on ? ` · t=${T.t} · ${getFrameRate().toFixed(1)}fps` : '';
+  print(`P1 · ${cols}×${rows} celdas · ${nodos} nodos · paleta “${Tema.paleta.nombre}” · ${Tema.tipo.nombre}${extra}`);
+}
+
+// ── Animación ──────────────────────────────────────────
+function setPlay(on) {
+  P.anim.on = on;
+  $('btnPlay').textContent = on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
+  if (on) {
+    frameRate(FPS_TROTTLE);
+    loop();
+  } else {
+    noLoop();
+    redraw(); // congela el fotograma actual
+  }
+}
+
+// ── Presets ────────────────────────────────────────────
+function estadoActual(nombre) {
+  return {
+    v: Presets.VERSION,
+    nombre,
+    params: {
+      celda: P.celda,
+      umbral: P.umbral,
+      frontera: P.frontera,
+      suavidad: P.suavidad,
+      semilla: P.semilla,
+      modo: P.modo,
+      paletaIdx: Tema.paletaIdx,
+      tipoIdx: Tema.tipoIdx,
+      anim: { ...P.anim },
+    },
+  };
+}
+
+function aplicarEstado(est) {
+  const err = Presets.validar(est);
+  if (err) { print(`Preset “${est && est.nombre}” inválido: ${err}`); return; }
+  const q = est.params;
+  P.celda = q.celda;
+  P.umbral = q.umbral;
+  P.frontera = q.frontera;
+  P.suavidad = q.suavidad;
+  P.semilla = q.semilla;
+  P.modo = q.modo;
+  P.anim = { ...q.anim };
+  Tema.setPaleta(q.paletaIdx);
+  Tema.setTipo(q.tipoIdx);
+  Ascii.setSeed(q.semilla);
+  if (q.modo === 'campo') Ascii.clearImage();
+  document.querySelector(`input[name=modo][value=${q.modo}]`).checked = true;
+  syncPanel();
+  setPlay(P.anim.on);
+  if (!P.anim.on) redraw();
+  print(`Preset aplicado: “${est.nombre}”`);
+}
+
+function renderListaPresets() {
+  const ul = $('listaPresets');
+  ul.textContent = '';
+  const lista = Presets.listar();
+  if (!lista.length) {
+    const li = document.createElement('li');
+    li.textContent = '(sin presets guardados)';
+    li.style.color = '#8a8a8a';
+    ul.appendChild(li);
+    return;
+  }
+  for (const p of lista) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.textContent = p.nombre;
+    btn.style.width = 'auto';
+    btn.style.flex = '1';
+    btn.onclick = () => aplicarEstado(p);
+    const del = document.createElement('button');
+    del.textContent = '✕';
+    del.style.width = 'auto';
+    del.onclick = () => { Presets.eliminar(p.nombre); renderListaPresets(); };
+    li.style.display = 'flex';
+    li.style.gap = '6px';
+    li.appendChild(btn);
+    li.appendChild(del);
+    ul.appendChild(li);
+  }
 }
 
 // ── Panel ──────────────────────────────────────────────
@@ -116,15 +213,52 @@ function cablearPanel() {
     loadImage(url, (img) => {
       document.querySelector('input[name=modo][value=imagen]').checked = true;
       P.modo = 'imagen';
-      awaitPixelBridge(img);
+      puentePixeles(img);
       redraw();
     });
+  };
+
+  // Animación
+  $('btnPlay').onclick = () => setPlay(!P.anim.on);
+  $('inVel').oninput = (e) => { P.anim.vel = +e.target.value; syncEtiquetas(); };
+  $('inAmp').oninput = (e) => { P.anim.amp = +e.target.value; syncEtiquetas(); };
+  $('inPeriodo').oninput = (e) => { P.anim.periodo = +e.target.value; syncEtiquetas(); };
+
+  // Presets
+  $('btnGuardarPreset').onclick = () => {
+    const nombre = $('inPresetNombre').value.trim() || `preset-${Date.now() % 100000}`;
+    const err = Presets.guardar(estadoActual(nombre));
+    if (err) { print(`No se guardó: ${err}`); return; }
+    $('inPresetNombre').value = '';
+    renderListaPresets();
+    print(`Preset guardado: “${nombre}”`);
+  };
+  $('btnExportPresets').onclick = () => {    const blob = new Blob([Presets.exportar()], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'presets-p1.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  $('btnImportPresets').onclick = () => $('inImportPresets').click();
+  $('inImportPresets').onchange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      const res = Presets.importar(rd.result);
+      renderListaPresets();
+      print(`Importados: ${res.ok} · errores: ${res.errores.length}`);
+      res.errores.forEach((m) => print('  ' + m));
+    };
+    rd.readAsText(f);
+    e.target.value = '';
   };
 
   $('btnSVG').onclick = () => guardarSVG();
 }
 
-function awaitPixelBridge(img) {
+function puentePixeles(img) {
   // Puente a baja resolución para muestreo de brillo (120 px de ancho).
   const lw = 120;
   const lh = Math.max(1, Math.round((img.height / img.width) * lw));
@@ -152,6 +286,9 @@ function syncEtiquetas() {
   $('vUmbral').textContent = P.umbral.toFixed(2);
   $('vFrontera').textContent = P.frontera.toFixed(2);
   $('vSuavidad').textContent = P.suavidad.toFixed(2);
+  $('vVel').textContent = P.anim.vel.toFixed(3);
+  $('vAmp').textContent = P.anim.amp.toFixed(2);
+  $('vPeriodo').textContent = P.anim.periodo;
 }
 
 function syncPanel() {
@@ -162,6 +299,10 @@ function syncPanel() {
   $('inFrontera').value = P.frontera;
   $('inSuavidad').value = P.suavidad;
   $('inSemilla').value = P.semilla;
+  $('inVel').value = P.anim.vel;
+  $('inAmp').value = P.anim.amp;
+  $('inPeriodo').value = P.anim.periodo;
+  $('btnPlay').textContent = P.anim.on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
   syncEtiquetas();
 }
 
@@ -171,6 +312,7 @@ function guardarSVG() {
 }
 
 function keyPressed() {
+  if (key === ' ') { setPlay(!P.anim.on); return false; }
   if (key === 's' || key === 'S') guardarSVG();
   else if (key === 'c' || key === 'C') { Tema.ciclarPaleta(); syncPanel(); redraw(); }
   else if (key === 't' || key === 'T') { Tema.ciclarTipo(); syncPanel(); redraw(); }

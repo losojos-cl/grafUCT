@@ -33,13 +33,14 @@ const Ascii = (() => {
 
   // Huella procedural: anillos concéntricos perturbados + máscara blob.
   // Centro del remolino aprox. donde la referencia concentra la masa.
-  function field(nx, ny, noise) {
+  // tz = tercer eje del ruido: la deriva temporal (solo modo procedural).
+  function field(nx, ny, noise, tz = 0) {
     const cx = 0.45, cy = 0.68;
     const dx = nx - cx, dy = (ny - cy) * 1.3;
     const r = Math.sqrt(dx * dx + dy * dy);
-    const w = (noise(nx * 3 + seed * 0.7, ny * 3 - seed * 0.3) - 0.5) * 0.35;
+    const w = (noise(nx * 3 + seed * 0.7, ny * 3 - seed * 0.3, tz) - 0.5) * 0.35;
     const lines = 1 - Math.abs(Math.sin((r + w) * 55)); // 1 sobre la cresta
-    const m = smooth(0.12, 0.55, noise(nx * 1.8 + seed * 1.3, ny * 1.8 + seed * 0.5));
+    const m = smooth(0.12, 0.55, noise(nx * 1.8 + seed * 1.3, ny * 1.8 + seed * 0.5, tz * 0.6));
     return clamp01(m * (0.30 + 0.70 * lines));
   }
 
@@ -58,10 +59,15 @@ const Ascii = (() => {
     setImage(data, w, h) { img = { data, w, h }; },
     clearImage() { img = null; },
 
-    // Valor del campo 0..1 (imagen si hay, si no procedural).
-    sample(nx, ny, noise) {
+    // Valor del campo 0..1 (imagen si hay, si no procedural con deriva tz).
+    sample(nx, ny, noise, tz = 0) {
       if (img) return sampleImage(nx, ny);
-      return field(nx, ny, noise);
+      return field(nx, ny, noise, tz);
+    },
+
+    // Frontera efectiva con barrido: base + amp·sin(2π·t/periodo).
+    frontAt(base, amp, periodo, t) {
+      return Math.min(0.6, Math.max(0.05, base + amp * Math.sin((2 * Math.PI * t) / periodo)));
     },
 
     // 0 = tecla legible … 1 = zona densa del lema.
