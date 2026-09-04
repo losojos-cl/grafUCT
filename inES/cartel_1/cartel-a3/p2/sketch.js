@@ -14,7 +14,11 @@ const P2 = {
   rows: 14, // 10×14 ≈ celdas cuadradas a sangre completa en A3
   semilla: 5,
   pad: 0.16, // fracción de celda como aire interior
+  anim: { on: false, vel: 1, amp: 0.6 },
 };
+
+const T2 = { t: 0 }; // reloj de animación
+const FPS_P2 = 15; // techo al animar (preview 2D liviano)
 
 // Tres roles vivos rotados por módulo (variedad como la referencia).
 function coloresModulo(i) {
@@ -45,6 +49,10 @@ function renderar(g) {
     fill: (c) => g.fill(c),
     stroke: (c) => g.stroke(c),
     strokeWeight: (w) => g.strokeWeight(w),
+    push: () => g.push(),
+    pop: () => g.pop(),
+    translate: (x, y) => g.translate(x, y),
+    rotate: (a) => g.rotate(a),
     rect: cuenta((x, y, w, h) => g.rect(x, y, w, h)),
     circle: cuenta((x, y, d) => g.circle(x, y, d)),
     line: cuenta((x1, y1, x2, y2) => g.line(x1, y1, x2, y2)),
@@ -52,7 +60,7 @@ function renderar(g) {
     arc: cuenta((x, y, w, h, a, b) => g.arc(x, y, w, h, a, b)),
     bezier: cuenta((a, b, c, d, e, f, h, i) => g.bezier(a, b, c, d, e, f, h, i)),
   } : {
-    background, noStroke, noFill, fill, stroke, strokeWeight,
+    background, noStroke, noFill, fill, stroke, strokeWeight, push, pop, translate, rotate,
     rect: cuenta(rect), circle: cuenta(circle), line: cuenta(line),
     ellipse: cuenta(ellipse), arc: cuenta(arc), bezier: cuenta(bezier),
   };
@@ -69,7 +77,13 @@ function renderar(g) {
       const iy = r * ch + (ch * P2.pad) / 2;
       const iw = cw * (1 - P2.pad), ih = ch * (1 - P2.pad);
       const rnd = Modulo.mulberry32(P2.semilla * 100003 + idx);
-      Modulo.painters[tipos[idx]](R, ix, iy, iw, ih, rnd, coloresModulo(idx));
+      // Movimiento rígido según familia + morph interno (tt).
+      const mo = Modulo.motion(tipos[idx], T2.t, iw, ih);
+      R.push();
+      R.translate(ix + iw / 2 + mo.dx, iy + ih / 2 + mo.dy);
+      R.rotate(mo.rot);
+      Modulo.painters[tipos[idx]](R, -iw / 2, -ih / 2, iw, ih, rnd, coloresModulo(idx), T2.t);
+      R.pop();
     }
   }
 
@@ -77,8 +91,11 @@ function renderar(g) {
 }
 
 function draw() {
+  if (P2.anim.on) T2.t += P2.anim.vel;
+  Modulo.setAmp(P2.anim.amp);
   const { nodos } = renderar(null);
-  print(`P2 · ${P2.cols}×${P2.rows} módulos · ${nodos} nodos · paleta “${Tema.paleta.nombre}”`);
+  const extra = P2.anim.on ? ` · t=${T2.t.toFixed(1)} · ${getFrameRate().toFixed(1)}fps` : '';
+  print(`P2 · ${P2.cols}×${P2.rows} módulos · ${nodos} nodos · paleta “${Tema.paleta.nombre}”${extra}`);
 }
 
 function guardarSVG() {
@@ -87,6 +104,19 @@ function guardarSVG() {
   save(svg, 'p2-modulo.svg'); // p5.svg enruta Graphics+SVG → saveSVG
   svg.remove();
   print(`SVG guardado: p2-modulo.svg (${nodos} nodos)`);
+}
+
+// ── Animación ──────────────────────────────────────────
+function setPlay(on) {
+  P2.anim.on = on;
+  $('btnPlay').textContent = on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
+  if (on) {
+    frameRate(FPS_P2);
+    loop();
+  } else {
+    noLoop();
+    redraw(); // congela el fotograma actual
+  }
 }
 
 // ── Presets (esquema p2) ───────────────────────────────
@@ -100,6 +130,7 @@ function estadoActual(nombre) {
       semilla: P2.semilla,
       pad: P2.pad,
       paletaIdx: Tema.paletaIdx,
+      anim: { ...P2.anim },
     },
   };
 }
@@ -112,9 +143,11 @@ function aplicarEstado(est) {
   P2.rows = q.rows;
   P2.semilla = q.semilla;
   P2.pad = q.pad;
+  P2.anim = { ...q.anim };
   Tema.setPaleta(q.paletaIdx);
   syncPanel();
-  redraw();
+  setPlay(P2.anim.on);
+  if (!P2.anim.on) redraw();
   print(`Preset aplicado: “${q0.nombre}”`);
 }
 
@@ -178,6 +211,11 @@ function cablearPanel() {
   $('inSemilla').onchange = (e) => { fijaSemilla(+e.target.value || 1); };
   $('btnSemilla').onclick = () => fijaSemilla(Math.floor(Math.random() * 9999) + 1);
 
+  // Animación
+  $('btnPlay').onclick = () => setPlay(!P2.anim.on);
+  $('inVel').oninput = (e) => { P2.anim.vel = +e.target.value; syncEtiquetas(); };
+  $('inAmp').oninput = (e) => { P2.anim.amp = +e.target.value; syncEtiquetas(); };
+
   $('btnGuardarPreset').onclick = () => {
     const nombre = $('inPresetNombre').value.trim() || `preset-${Date.now() % 100000}`;
     const err = Presets.p2.guardar(estadoActual(nombre));
@@ -223,6 +261,8 @@ function syncEtiquetas() {
   $('vRows').textContent = P2.rows;
   $('vPad').textContent = P2.pad.toFixed(2);
   $('vSemilla').textContent = P2.semilla;
+  $('vVel').textContent = P2.anim.vel.toFixed(1);
+  $('vAmp').textContent = P2.anim.amp.toFixed(2);
 }
 
 function syncPanel() {
@@ -231,10 +271,14 @@ function syncPanel() {
   $('inRows').value = P2.rows;
   $('inPad').value = P2.pad;
   $('inSemilla').value = P2.semilla;
+  $('inVel').value = P2.anim.vel;
+  $('inAmp').value = P2.anim.amp;
+  $('btnPlay').textContent = P2.anim.on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
   syncEtiquetas();
 }
 
 function keyPressed() {
+  if (key === ' ') { setPlay(!P2.anim.on); return false; }
   if (key === 's' || key === 'S') guardarSVG();
   else if (key === 'c' || key === 'C') { Tema.ciclarPaleta(); syncPanel(); redraw(); }
   else if (key === 'r' || key === 'R') fijaSemilla(Math.floor(Math.random() * 9999) + 1);

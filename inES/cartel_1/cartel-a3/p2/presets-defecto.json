@@ -1,15 +1,16 @@
 {
-  "v": 1,
+  "v": 2,
   "presets": [
     {
-      "v": 1,
+      "v": 2,
       "nombre": "modulo",
       "params": {
         "cols": 10,
         "rows": 14,
         "semilla": 5,
         "pad": 0.16,
-        "paletaIdx": 1
+        "paletaIdx": 1,
+        "anim": { "on": false, "vel": 1, "amp": 0.6 }
       }
     }
   ]
