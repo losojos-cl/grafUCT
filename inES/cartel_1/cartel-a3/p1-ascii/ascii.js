@@ -3,7 +3,7 @@
 // Coordenadas normalizadas: nx, ny en 0..1 sobre el formato A3.
 
 const Ascii = (() => {
-  const MOTTO = 'LOS DATOS COMO ELEMENTO CONSTRUCTIVO DE REPRESENTACIONES ';
+  const MOTTO = 'LOS DATOS NO SON NEUTROS: MUESTRAN LO QUE DECIDIMOS MEDIR. ';
 
   // Mapa de teclado (zona superior): [etiqueta, xFrac, yFrac].
   // Fracciones del formato; el escalonado imita la referencia.
