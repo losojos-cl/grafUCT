@@ -107,12 +107,7 @@ const Sankey = (() => {
   function frame(L, t, cfg) {
     const ops = [];
 
-    // Ticks de estrato solo en hubs (orígenes/destinos van al borde, sin ticks).
-    const tick = (p) => {
-      const hl = 0.012 + 0.014 * p.tl;
-      ops.push({ k: 'line', x1: p.x - hl, y1: p.y, x2: p.x + hl, y2: p.y, c: 'tinta' });
-    };
-    L.hub.forEach(tick);
+    // Sin ticks: solo cintas + viajeros.
 
     L.enlaces.forEach((e) => {
       const dy = e.p1.y - e.p0.y;
