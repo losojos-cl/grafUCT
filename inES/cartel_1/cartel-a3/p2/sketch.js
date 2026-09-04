@@ -11,7 +11,7 @@ const H = 420 * MM_TO_PT; // ≈ 1190.55
 
 const P2 = {
   cols: 10,
-  rows: 10,
+  rows: 14, // 10×14 ≈ celdas cuadradas a sangre completa en A3
   semilla: 5,
   pad: 0.16, // fracción de celda como aire interior
 };
@@ -59,20 +59,17 @@ function renderar(g) {
 
   R.background(Tema.rol('fondo'));
 
-  // Retícula cuadrada centrada.
-  const gw = W * 0.84, gh = H * 0.8;
-  const cs = Math.min(gw / P2.cols, gh / P2.rows);
-  const ox = (W - cs * P2.cols) / 2, oy = (H - cs * P2.rows) / 2;
-
+  // Retícula a sangre completa: celdas rectangulares W/cols × H/rows.
+  const cw = W / P2.cols, ch = H / P2.rows;
   const tipos = Modulo.orden(P2.cols * P2.rows, P2.semilla);
   let idx = 0;
   for (let r = 0; r < P2.rows; r++) {
     for (let c = 0; c < P2.cols; c++, idx++) {
-      const ix = ox + c * cs + (cs * P2.pad) / 2;
-      const iy = oy + r * cs + (cs * P2.pad) / 2;
-      const inner = cs * (1 - P2.pad);
+      const ix = c * cw + (cw * P2.pad) / 2;
+      const iy = r * ch + (ch * P2.pad) / 2;
+      const iw = cw * (1 - P2.pad), ih = ch * (1 - P2.pad);
       const rnd = Modulo.mulberry32(P2.semilla * 100003 + idx);
-      Modulo.painters[tipos[idx]](R, ix, iy, inner, rnd, coloresModulo(idx));
+      Modulo.painters[tipos[idx]](R, ix, iy, iw, ih, rnd, coloresModulo(idx));
     }
   }
 
