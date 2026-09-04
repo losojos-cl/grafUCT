@@ -58,9 +58,9 @@ const Sankey = (() => {
       }));
     };
 
-    const org = fila(cfg.nOrg, 0.1, 0.05);
+    const org = fila(cfg.nOrg, 0, 0); // pegado al borde superior
     const hub = fila(cfg.nHub, 0.5, 0.16);
-    const des = fila(cfg.nDes, 0.9, 0.05);
+    const des = fila(cfg.nDes, 1, 0); // pegado al borde inferior
 
     // Enlaces: orígenes→1-3 hubs, hubs→2-5 destinos. Valores sesgados
     // (potencia): pocas cintas gruesas dominan, muchas finas.
@@ -107,14 +107,12 @@ const Sankey = (() => {
   function frame(L, t, cfg) {
     const ops = [];
 
-    // Ticks de estrato (largo propio por puerto).
+    // Ticks de estrato solo en hubs (orígenes/destinos van al borde, sin ticks).
     const tick = (p) => {
       const hl = 0.012 + 0.014 * p.tl;
       ops.push({ k: 'line', x1: p.x - hl, y1: p.y, x2: p.x + hl, y2: p.y, c: 'tinta' });
     };
-    L.org.forEach(tick);
     L.hub.forEach(tick);
-    L.des.forEach(tick);
 
     L.enlaces.forEach((e) => {
       const dy = e.p1.y - e.p0.y;
