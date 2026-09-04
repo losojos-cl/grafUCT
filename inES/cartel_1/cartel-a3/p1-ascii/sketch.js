@@ -242,6 +242,7 @@ function estadoActual(nombre) {
       anim: { ...P.anim },
       prim: { ...P.prim },
       vista: { ...P.vista },
+      perm: Tema.getPerm(),
     },
   };
 }
@@ -261,6 +262,7 @@ function aplicarEstado(est) {
   P.vista = { ...q.vista };
   Tema.setPaleta(q.paletaIdx);
   Tema.setTipo(q.tipoIdx);
+  if (q.perm) Tema.setPerm(q.perm);
   Ascii.setSeed(q.semilla);
   Ascii.setVista(q.vista);
   if (q.modo === 'imagen') {
@@ -315,6 +317,7 @@ function cablearPanel() {
 
   $('selPaleta').onchange = (e) => { Tema.setPaleta(+e.target.value); redraw(); };
   $('selTipo').onchange = (e) => { Tema.setTipo(+e.target.value); redraw(); };
+  $('btnShuffle').onclick = () => { Tema.barajar(); redraw(); };
 
   const liga = (id, clave) => {
     $(id).oninput = (e) => { P[clave] = +e.target.value; syncEtiquetas(); redraw(); };
@@ -488,7 +491,8 @@ function syncPanel() {
 
 function keyPressed() {
   if (key === ' ') { setPlay(!P.anim.on); return false; }
-  if (key === 's' || key === 'S') guardarSVG();
+  if (key === 'b' || key === 'B') { Tema.barajar(); redraw(); }
+  else if (key === 's' || key === 'S') guardarSVG();
   else if (key === 'c' || key === 'C') { Tema.ciclarPaleta(); syncPanel(); redraw(); }
   else if (key === 't' || key === 'T') { Tema.ciclarTipo(); syncPanel(); redraw(); }
   else if (key === 'r' || key === 'R') fijaSemilla(Math.floor(Math.random() * 9999) + 1);

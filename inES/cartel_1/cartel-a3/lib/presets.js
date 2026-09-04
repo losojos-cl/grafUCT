@@ -10,6 +10,7 @@ const Presets = (() => {
     sqDens: 0.08, sqMax: 0.5,
   };
   const DEFAULT_VISTA = { z: 1, ox: 0, oy: 0 };
+  const DEFAULT_PERM = [0, 1, 2, 3, 4]; // disposición canónica de colores
 
   // Sin localStorage (Node/tests, modo privado) → memoria volátil.
   const mem = {};
@@ -24,6 +25,15 @@ const Presets = (() => {
   }
 
   const num = (v, a, b) => typeof v === 'number' && v >= a && v <= b;
+
+  // perm: reordenación de los 5 colores sobre los roles (botón Barajar).
+  function validarPerm(q) {
+    const p = q.perm;
+    if (!Array.isArray(p) || p.length !== 5) return 'perm inválido';
+    if (!p.every((v) => Number.isInteger(v) && v >= 0 && v < 5)) return 'perm inválido';
+    if (new Set(p).size !== 5) return 'perm inválido';
+    return null;
+  }
 
   // ── Esquema p1 (v2; v1 se normaliza) ───────────────────
   function validarBaseP1(q) {
@@ -63,7 +73,7 @@ const Presets = (() => {
 
   function validarP1(p) {
     if (!p || typeof p !== 'object') return 'no es un objeto';
-    if (p.v !== 1 && p.v !== 2) return `versión ${p.v} ≠ 1/2`;
+    if (p.v !== 1 && p.v !== 2 && p.v !== 3) return `versión ${p.v} ≠ 1/2/3`;
     if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
     const q = p.params || {};
     const err = validarBaseP1(q);
@@ -71,17 +81,23 @@ const Presets = (() => {
     if (p.v === 2) {
       return validarPrimP1(q.prim || {}) || validarVistaP1(q.vista || {});
     }
+    if (p.v === 3) {
+      return validarPrimP1(q.prim || {}) || validarVistaP1(q.vista || {}) || validarPerm(q);
+    }
     return null;
   }
 
   function normalizarP1(p) {
     if (validarP1(p)) return null;
-    if (p.v === 2) return p;
+    if (p.v === 3) return p;
     const params = { ...p.params };
-    if (params.modo === 'campo') params.modo = 'huella';
-    params.prim = { ...DEFAULT_PRIM };
-    params.vista = { ...DEFAULT_VISTA };
-    return { v: 2, nombre: p.nombre, params };
+    if (p.v === 1) {
+      if (params.modo === 'campo') params.modo = 'huella';
+      params.prim = { ...DEFAULT_PRIM };
+      params.vista = { ...DEFAULT_VISTA };
+    }
+    params.perm = [...DEFAULT_PERM];
+    return { v: 3, nombre: p.nombre, params };
   }
 
   // ── Esquema p2 (v2; v1 se normaliza: +anim) ────────
@@ -89,7 +105,7 @@ const Presets = (() => {
 
   function validarP2(p) {
     if (!p || typeof p !== 'object') return 'no es un objeto';
-    if (p.v !== 1 && p.v !== 2) return `versión ${p.v} ≠ 1/2`;
+    if (p.v !== 1 && p.v !== 2 && p.v !== 3) return `versión ${p.v} ≠ 1/2/3`;
     if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
     const q = p.params || {};
     if (!Number.isInteger(q.cols) || q.cols < 1 || q.cols > 24) return 'cols inválido';
@@ -97,26 +113,29 @@ const Presets = (() => {
     if (!Number.isInteger(q.semilla) || q.semilla < 1) return 'semilla inválida';
     if (!num(q.pad, 0, 0.6)) return 'pad fuera de rango';
     if (!Number.isInteger(q.paletaIdx) || q.paletaIdx < 0) return 'paleta inválida';
-    if (p.v === 2) {
+    if (p.v >= 2) {
       const a = q.anim || {};
       if (typeof a.on !== 'boolean') return 'anim.on inválido';
       if (!num(a.vel, 0, 5)) return 'anim.vel fuera de rango';
       if (!num(a.amp, 0, 1)) return 'anim.amp fuera de rango';
     }
+    if (p.v === 3) return validarPerm(q);
     return null;
   }
 
   function normalizarP2(p) {
     if (validarP2(p)) return null;
-    if (p.v === 2) return p;
-    const params = { ...p.params, anim: { ...DEFAULT_ANIM_P2 } };
-    return { v: 2, nombre: p.nombre, params };
+    if (p.v === 3) return p;
+    const params = { ...p.params };
+    if (p.v === 1) params.anim = { ...DEFAULT_ANIM_P2 };
+    params.perm = [...DEFAULT_PERM];
+    return { v: 3, nombre: p.nombre, params };
   }
 
   // ── Esquema p3 (v2; v1 se normaliza: +soltura) ──────
   function validarP3(p) {
     if (!p || typeof p !== 'object') return 'no es un objeto';
-    if (p.v !== 1 && p.v !== 2) return `versión ${p.v} ≠ 1/2`;
+    if (p.v !== 1 && p.v !== 2 && p.v !== 3) return `versión ${p.v} ≠ 1/2/3`;
     if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
     const q = p.params || {};
     if (!Number.isInteger(q.nOrg) || q.nOrg < 1 || q.nOrg > 16) return 'nOrg inválido';
@@ -128,19 +147,22 @@ const Presets = (() => {
     if (!num(q.viaDens, 0, 1)) return 'viaDens fuera de rango';
     if (!num(q.viaTam, 0.05, 2)) return 'viaTam fuera de rango';
     if (!Number.isInteger(q.paletaIdx) || q.paletaIdx < 0) return 'paleta inválida';
-    if (p.v === 2 && !num(q.soltura, 0, 1)) return 'soltura fuera de rango';
+    if (p.v >= 2 && !num(q.soltura, 0, 1)) return 'soltura fuera de rango';
     const a = q.anim || {};
     if (typeof a.on !== 'boolean') return 'anim.on inválido';
     if (!num(a.vel, 0, 5)) return 'anim.vel fuera de rango';
     if (!num(a.amp, 0, 1)) return 'anim.amp fuera de rango';
+    if (p.v === 3) return validarPerm(q);
     return null;
   }
 
   function normalizarP3(p) {
     if (validarP3(p)) return null;
-    if (p.v === 2) return p;
-    const params = { ...p.params, soltura: 0.7 };
-    return { v: 2, nombre: p.nombre, params };
+    if (p.v === 3) return p;
+    const params = { ...p.params };
+    if (p.v === 1) params.soltura = 0.7;
+    params.perm = [...DEFAULT_PERM];
+    return { v: 3, nombre: p.nombre, params };
   }
 
   // ── Factoría de ámbitos ────────────────────────────────
@@ -206,12 +228,12 @@ const Presets = (() => {
     };
   }
 
-  const p1 = crearAmbito('p1-presets', 2, validarP1, normalizarP1);
-  const p2 = crearAmbito('p2-presets', 2, validarP2, normalizarP2);
-  const p3 = crearAmbito('p3-presets', 2, validarP3, normalizarP3);
+  const p1 = crearAmbito('p1-presets', 3, validarP1, normalizarP1);
+  const p2 = crearAmbito('p2-presets', 3, validarP2, normalizarP2);
+  const p3 = crearAmbito('p3-presets', 3, validarP3, normalizarP3);
 
   // Nivel superior = esquema p1 (p1/sketch.js no cambia).
-  return { ...p1, DEFAULT_PRIM, DEFAULT_VISTA, p1, p2, p3 };
+  return { ...p1, DEFAULT_PRIM, DEFAULT_VISTA, DEFAULT_PERM, p1, p2, p3 };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Presets;

@@ -131,6 +131,7 @@ function estadoActual(nombre) {
       pad: P2.pad,
       paletaIdx: Tema.paletaIdx,
       anim: { ...P2.anim },
+      perm: Tema.getPerm(),
     },
   };
 }
@@ -145,6 +146,7 @@ function aplicarEstado(est) {
   P2.pad = q.pad;
   P2.anim = { ...q.anim };
   Tema.setPaleta(q.paletaIdx);
+  if (q.perm) Tema.setPerm(q.perm);
   syncPanel();
   setPlay(P2.anim.on);
   if (!P2.anim.on) redraw();
@@ -203,6 +205,7 @@ const $ = (id) => document.getElementById(id);
 function cablearPanel() {
   Tema.PALETAS.forEach((p, i) => $('selPaleta').add(new Option(`${i} · ${p.nombre}`, i)));
   $('selPaleta').onchange = (e) => { Tema.setPaleta(+e.target.value); redraw(); };
+  $('btnShuffle').onclick = () => { Tema.barajar(); redraw(); };
 
   $('inCols').oninput = (e) => { P2.cols = +e.target.value; syncEtiquetas(); redraw(); };
   $('inRows').oninput = (e) => { P2.rows = +e.target.value; syncEtiquetas(); redraw(); };
@@ -279,7 +282,8 @@ function syncPanel() {
 
 function keyPressed() {
   if (key === ' ') { setPlay(!P2.anim.on); return false; }
-  if (key === 's' || key === 'S') guardarSVG();
+  if (key === 'b' || key === 'B') { Tema.barajar(); redraw(); }
+  else if (key === 's' || key === 'S') guardarSVG();
   else if (key === 'c' || key === 'C') { Tema.ciclarPaleta(); syncPanel(); redraw(); }
   else if (key === 'r' || key === 'R') fijaSemilla(Math.floor(Math.random() * 9999) + 1);
 }
