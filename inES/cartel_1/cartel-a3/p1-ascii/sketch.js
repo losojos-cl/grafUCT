@@ -2,7 +2,10 @@
 // Teclado literal arriba → disolución → trama densa del lema.
 // Colores y fuente SIEMPRE vía Tema (roles); ?paleta=N&tipo=M por URL.
 // Atajos: S guardar · C paleta · T tipo · R semilla · Espacio play/pausa.
-// Animación (deriva + barrido) vive en pantalla; el SVG exporta el fotograma visible.
+//
+// RENDER DUAL: preview animado en canvas 2D (rápido) + SVG oculto
+// (createGraphics) solo para exportar a resolución real.
+// La animación vive en pantalla; el SVG exporta el fotograma visible.
 
 const MM_TO_PT = 72 / 25.4;
 const W = 297 * MM_TO_PT; // ≈ 841.89
@@ -19,11 +22,11 @@ const P = {
 };
 
 const T = { t: 0, tz: 0 }; // reloj de animación (ticks + eje de ruido)
-const FPS_TROTTLE = 6; // redibujados/segundo al animar (nodos SVG = costo)
+const FPS_PREVIEW = 12; // techo al animar (canvas 2D lo sostiene)
 
 function setup() {
   Tema.init();
-  const cnv = createCanvas(W, H, SVG);
+  const cnv = createCanvas(W, H); // 2D: preview rápido
   cnv.parent('lienzo');
   noLoop();
   cablearPanel();
@@ -31,66 +34,107 @@ function setup() {
   renderListaPresets();
 }
 
-function draw() {
-  if (P.anim.on) {
-    T.t++;
-    T.tz = T.t * P.anim.vel;
-  }
-  const front = Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t);
+// Rutina única de dibujo sobre cualquier renderer (2D visible o SVG oculto).
+// g === null → canvas principal; o = { celda, front, tz, semilla }.
+// Devuelve conteo de nodos dibujados.
+function renderar(g, o) {
+  const R = g ? {
+    background: (c) => g.background(c),
+    noStroke: () => g.noStroke(),
+    textFont: (f) => g.textFont(f),
+    textAlign: (a, b) => g.textAlign(a, b),
+    fill: (c) => g.fill(c),
+    textSize: (s) => g.textSize(s),
+    text: (t, x, y) => g.text(t, x, y),
+  } : { background, fill, noStroke, textFont, textAlign, textSize, text };
 
-  noiseSeed(P.semilla);
-  background(Tema.rol('fondo'));
-  textFont(Tema.tipo.stack);
-  textAlign(CENTER, CENTER);
-  noStroke();
+  noiseSeed(o.semilla);
+  R.background(Tema.rol('fondo'));
+  R.textFont(Tema.tipo.stack);
+  R.textAlign(CENTER, CENTER);
+  R.noStroke();
 
-  const cols = Math.floor(W / P.celda);
-  const rows = Math.floor(H / P.celda);
-  const n = (x, y) => noise(x, y, T.tz);
+  const cols = Math.floor(W / o.celda);
+  const rows = Math.floor(H / o.celda);
+  const n = (x, y) => noise(x, y, o.tz);
   let nodos = 0;
 
   // ── Zona densa: caracteres del lema modulados por el campo ──
   for (let r = 0; r < rows; r++) {
     const ny = (r + 0.5) / rows;
-    const y = (r + 0.5) * P.celda;
+    const y = (r + 0.5) * o.celda;
     for (let c = 0; c < cols; c++) {
       const nx = (c + 0.5) / cols;
-      const v = Ascii.sample(nx, ny, n, T.tz);
-      const d = Ascii.dissolve(ny, v, front, P.suavidad);
+      const v = Ascii.sample(nx, ny, n, o.tz);
+      const d = Ascii.dissolve(ny, v, o.front, P.suavidad);
       if (d < P.umbral) continue;
-      fill(v > 0.66 ? Tema.rol('tinta') : Tema.rol('suave'));
-      textSize(P.celda * (0.4 + v * 0.75));
-      text(Ascii.mottoChar(c, r), (c + 0.5) * P.celda, y);
+      R.fill(v > 0.66 ? Tema.rol('tinta') : Tema.rol('suave'));
+      R.textSize(o.celda * (0.4 + v * 0.75));
+      R.text(Ascii.mottoChar(c, r), (c + 0.5) * o.celda, y);
       nodos++;
     }
   }
 
   // ── Zona teclado: etiquetas legibles + desintegración en la frontera ──
-  fill(Tema.rol('tinta'));
+  R.fill(Tema.rol('tinta'));
   for (const s of Ascii.keyboardSlots(cols, rows)) {
     const nx = (s.c + 0.5) / cols;
     const ny = (s.r + 0.5) / rows;
-    const v = Ascii.sample(nx, ny, n, T.tz);
-    const d = Ascii.dissolve(ny, v, front, P.suavidad);
+    const v = Ascii.sample(nx, ny, n, o.tz);
+    const d = Ascii.dissolve(ny, v, o.front, P.suavidad);
     if (d > P.umbral) continue;
     // Cerca de la frontera algunas teclas ya se pierden (determinista).
     const z0 = P.umbral * 0.55;
     if (d > z0 && Ascii.hash(s.c, s.r) < (d - z0) / (P.umbral - z0)) continue;
-    textSize(P.celda * (s.t.length > 2 ? 0.7 : 0.95));
-    text(s.t, (s.c + 0.5) * P.celda, (s.r + 0.5) * P.celda);
+    R.textSize(o.celda * (s.t.length > 2 ? 0.7 : 0.95));
+    R.text(s.t, (s.c + 0.5) * o.celda, (s.r + 0.5) * o.celda);
     nodos++;
   }
 
   // ── Modo imagen sin imagen cargada: aviso en el lienzo ──
   if (P.modo === 'imagen' && !Ascii.hasImage()) {
-    fill(Tema.rol('tinta'));
-    textSize(20);
-    text('Carga una imagen con el panel →', W / 2, H / 2);
+    R.fill(Tema.rol('tinta'));
+    R.textSize(20);
+    R.text('Carga una imagen con el panel →', W / 2, H / 2);
     nodos++;
   }
 
+  return { cols, rows, nodos };
+}
+
+function estadoOptico() {
+  if (P.anim.on) {
+    T.t++;
+    T.tz = T.t * P.anim.vel;
+  }
+  return {
+    celda: P.anim.on ? P.celda * 2 : P.celda, // preview adaptativo
+    front: Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t),
+    tz: T.tz,
+    semilla: P.semilla,
+  };
+}
+
+function draw() {
+  const o = estadoOptico();
+  const { cols, rows, nodos } = renderar(null, o);
   const extra = P.anim.on ? ` · t=${T.t} · ${getFrameRate().toFixed(1)}fps` : '';
   print(`P1 · ${cols}×${rows} celdas · ${nodos} nodos · paleta “${Tema.paleta.nombre}” · ${Tema.tipo.nombre}${extra}`);
+}
+
+// ── Exportación: SVG oculto a resolución real ──────────
+function guardarSVG() {
+  const o = {
+    celda: P.celda,
+    front: Ascii.frontAt(P.frontera, P.anim.on ? P.anim.amp : 0, P.anim.periodo, T.t),
+    tz: T.tz,
+    semilla: P.semilla,
+  };
+  const svg = createGraphics(W, H, SVG);
+  const { nodos } = renderar(svg, o);
+  save(svg, 'p1-ascii.svg'); // p5.svg enruta Graphics+SVG → saveSVG
+  svg.remove();
+  print(`SVG guardado: p1-ascii.svg (${nodos} nodos)`);
 }
 
 // ── Animación ──────────────────────────────────────────
@@ -98,11 +142,11 @@ function setPlay(on) {
   P.anim.on = on;
   $('btnPlay').textContent = on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
   if (on) {
-    frameRate(FPS_TROTTLE);
+    frameRate(FPS_PREVIEW);
     loop();
   } else {
     noLoop();
-    redraw(); // congela el fotograma actual
+    redraw(); // congela el fotograma actual a resolución real
   }
 }
 
@@ -233,7 +277,8 @@ function cablearPanel() {
     renderListaPresets();
     print(`Preset guardado: “${nombre}”`);
   };
-  $('btnExportPresets').onclick = () => {    const blob = new Blob([Presets.exportar()], { type: 'application/json' });
+  $('btnExportPresets').onclick = () => {
+    const blob = new Blob([Presets.exportar()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'presets-p1.json';
@@ -304,11 +349,6 @@ function syncPanel() {
   $('inPeriodo').value = P.anim.periodo;
   $('btnPlay').textContent = P.anim.on ? '❚❚ Pausar (Espacio)' : '▶ Animar (Espacio)';
   syncEtiquetas();
-}
-
-function guardarSVG() {
-  save('p1-ascii.svg');
-  print('SVG guardado: p1-ascii.svg');
 }
 
 function keyPressed() {
