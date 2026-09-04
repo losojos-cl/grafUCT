@@ -113,10 +113,10 @@ const Presets = (() => {
     return { v: 2, nombre: p.nombre, params };
   }
 
-  // ── Esquema p3 (v1; sankey) ────────────────────────────
+  // ── Esquema p3 (v2; v1 se normaliza: +soltura) ──────
   function validarP3(p) {
     if (!p || typeof p !== 'object') return 'no es un objeto';
-    if (p.v !== 1) return `versión ${p.v} ≠ 1`;
+    if (p.v !== 1 && p.v !== 2) return `versión ${p.v} ≠ 1/2`;
     if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
     const q = p.params || {};
     if (!Number.isInteger(q.nOrg) || q.nOrg < 1 || q.nOrg > 16) return 'nOrg inválido';
@@ -128,6 +128,7 @@ const Presets = (() => {
     if (!num(q.viaDens, 0, 1)) return 'viaDens fuera de rango';
     if (!num(q.viaTam, 0.05, 2)) return 'viaTam fuera de rango';
     if (!Number.isInteger(q.paletaIdx) || q.paletaIdx < 0) return 'paleta inválida';
+    if (p.v === 2 && !num(q.soltura, 0, 1)) return 'soltura fuera de rango';
     const a = q.anim || {};
     if (typeof a.on !== 'boolean') return 'anim.on inválido';
     if (!num(a.vel, 0, 5)) return 'anim.vel fuera de rango';
@@ -136,7 +137,10 @@ const Presets = (() => {
   }
 
   function normalizarP3(p) {
-    return validarP3(p) ? null : p;
+    if (validarP3(p)) return null;
+    if (p.v === 2) return p;
+    const params = { ...p.params, soltura: 0.7 };
+    return { v: 2, nombre: p.nombre, params };
   }
 
   // ── Factoría de ámbitos ────────────────────────────────
@@ -204,7 +208,7 @@ const Presets = (() => {
 
   const p1 = crearAmbito('p1-presets', 2, validarP1, normalizarP1);
   const p2 = crearAmbito('p2-presets', 2, validarP2, normalizarP2);
-  const p3 = crearAmbito('p3-presets', 1, validarP3, normalizarP3);
+  const p3 = crearAmbito('p3-presets', 2, validarP3, normalizarP3);
 
   // Nivel superior = esquema p1 (p1/sketch.js no cambia).
   return { ...p1, DEFAULT_PRIM, DEFAULT_VISTA, p1, p2, p3 };

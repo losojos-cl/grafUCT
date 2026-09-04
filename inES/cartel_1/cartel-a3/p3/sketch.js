@@ -14,6 +14,7 @@ const P3 = {
   nHub: 4,
   nDes: 10,
   semilla: 7,
+  soltura: 0.7, // 0 = retícula estricta … 1 = suelto
   curva: 0.4,
   anchoMax: 0.03, // fracción del ancho
   viaDens: 0.7,
@@ -40,6 +41,7 @@ function setup() {
 function reconstruir() {
   LAYOUT = Sankey.layout({
     nOrg: P3.nOrg, nHub: P3.nHub, nDes: P3.nDes, semilla: P3.semilla,
+    soltura: P3.soltura,
   });
 }
 
@@ -133,6 +135,7 @@ function estadoActual(nombre) {
       nHub: P3.nHub,
       nDes: P3.nDes,
       semilla: P3.semilla,
+      soltura: P3.soltura,
       curva: P3.curva,
       anchoMax: P3.anchoMax,
       viaDens: P3.viaDens,
@@ -152,6 +155,7 @@ function aplicarEstado(est) {
   P3.nHub = q.nHub;
   P3.nDes = q.nDes;
   P3.semilla = q.semilla;
+  P3.soltura = q.soltura;
   P3.curva = q.curva;
   P3.anchoMax = q.anchoMax;
   P3.viaDens = q.viaDens;
@@ -224,6 +228,7 @@ function cablearPanel() {
   rearmar('inNOrg', 'nOrg');
   rearmar('inNHub', 'nHub');
   rearmar('inNDes', 'nDes');
+  rearmar('inSoltura', 'soltura');
 
   const liga = (id, clave) => {
     $(id).oninput = (e) => { P3[clave] = +e.target.value; syncEtiquetas(); redraw(); };
@@ -285,6 +290,7 @@ function syncEtiquetas() {
   $('vNOrg').textContent = P3.nOrg;
   $('vNHub').textContent = P3.nHub;
   $('vNDes').textContent = P3.nDes;
+  $('vSoltura').textContent = P3.soltura.toFixed(2);
   $('vCurva').textContent = P3.curva.toFixed(2);
   $('vAncho').textContent = P3.anchoMax.toFixed(3);
   $('vViaDens').textContent = P3.viaDens.toFixed(2);
@@ -299,6 +305,7 @@ function syncPanel() {
   $('inNOrg').value = P3.nOrg;
   $('inNHub').value = P3.nHub;
   $('inNDes').value = P3.nDes;
+  $('inSoltura').value = P3.soltura;
   $('inCurva').value = P3.curva;
   $('inAncho').value = P3.anchoMax;
   $('inViaDens').value = P3.viaDens;

@@ -5,6 +5,8 @@
 //   { k:'line', x1, y1, x2, y2, c }                       (tick de estrato)
 // Coordenadas normalizadas 0..1 (el sketch escala a A3).
 // Sin texto. Determinista: mismo seed + mismo t → mismas ops.
+// El movimiento es ERRAR POR RUIDO (no senos): deambula sin repetirse.
+// El orden se rompe con 'soltura' (0 = retícula estricta … 1 = suelto).
 
 const Sankey = (() => {
   function mulberry32(a) {
@@ -14,6 +16,18 @@ const Sankey = (() => {
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+  }
+
+  // Ruido 1D suave (valor interpolado) para el errar.
+  function h1(n) {
+    const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  }
+
+  function vnoise(x) {
+    const i = Math.floor(x), f = x - i;
+    const u = f * f * (3 - 2 * f);
+    return h1(i) * (1 - u) + h1(i + 1) * u;
   }
 
   // Punto de bezier cúbica en s.
@@ -26,55 +40,77 @@ const Sankey = (() => {
 
   const VIVOS = ['tinta', 'acento', 'suave', 'profundo'];
 
-  // cfg: { nOrg, nHub, nDes, semilla, curva, anchoMax, viaDens, viaTam }
+  // cfg: { nOrg, nHub, nDes, semilla, curva, anchoMax, viaDens, viaTam, soltura }
   function layout(cfg) {
     const rnd = mulberry32(cfg.semilla);
-    const fr = (a, b) => a + rnd() * (b - a);
+    const SOL = cfg.soltura == null ? 0.7 : cfg.soltura;
 
-    const fila = (n, y) => {
+    const fila = (n, y, jy) => {
       const xs = [];
-      for (let i = 0; i < n; i++) xs.push(0.08 + (0.84 * (n === 1 ? 0.5 : i / (n - 1))) + (rnd() - 0.5) * 0.05);
-      return xs.map((x) => ({ x: Math.min(0.96, Math.max(0.04, x)), y }));
+      for (let i = 0; i < n; i++) {
+        const bx = 0.08 + 0.84 * (n === 1 ? 0.5 : i / (n - 1));
+        xs.push(bx + (rnd() - 0.5) * (0.02 + 0.1 * SOL));
+      }
+      return xs.map((x) => ({
+        x: Math.min(0.96, Math.max(0.04, x)),
+        y: y + (rnd() - 0.5) * jy * SOL,
+        tl: 0.5 + rnd(), // largo de tick propio
+      }));
     };
 
-    const org = fila(cfg.nOrg, 0.1);
-    const hub = fila(cfg.nHub, 0.5);
-    const des = fila(cfg.nDes, 0.9);
+    const org = fila(cfg.nOrg, 0.1, 0.05);
+    const hub = fila(cfg.nHub, 0.5, 0.16);
+    const des = fila(cfg.nDes, 0.9, 0.05);
 
-    // Enlaces origen→hub (1-2 por origen) y hub→destino (reparto).
-    const enlaces = [];
-    const aHub = org.map(() => []);
+    // Enlaces: orígenes→1-3 hubs, hubs→2-5 destinos. Valores sesgados
+    // (potencia): pocas cintas gruesas dominan, muchas finas.
+    const todo = [];
+    const mk = (de, a, i, j) => ({
+      de, a, i, j,
+      v: 0.1 + 0.9 * Math.pow(rnd(), 2.2),
+      ph: rnd(),
+      ck: 0.6 + 0.8 * rnd(), // curva propia por cinta
+      ci: todo.length,
+    });
     org.forEach((o, i) => {
-      const k = 1 + Math.floor(rnd() * 2);
+      const k = 1 + Math.floor(rnd() * 3);
+      const usados = new Set();
       for (let j = 0; j < k; j++) {
         const h = Math.floor(rnd() * hub.length);
-        if (!aHub[i].includes(h)) aHub[i].push(h);
-        enlaces.push({ de: ['o', i], a: ['h', h], v: 0.15 + 0.85 * rnd(), ph: rnd() });
+        if (usados.has(h)) continue;
+        usados.add(h);
+        todo.push(mk('o', 'h', i, h));
       }
     });
     hub.forEach((h, i) => {
-      const k = 1 + Math.floor(rnd() * 3);
+      const k = 2 + Math.floor(rnd() * 4);
       const usados = new Set();
       for (let j = 0; j < k; j++) {
         const d = Math.floor(rnd() * des.length);
         if (usados.has(d)) continue;
         usados.add(d);
-        enlaces.push({ de: ['h', i], a: ['d', d], v: 0.15 + 0.85 * rnd(), ph: rnd() });
+        todo.push(mk('h', 'd', i, d));
       }
     });
 
-    const pt = (ref) => (ref[0] === 'o' ? org[ref[1]] : ref[0] === 'h' ? hub[ref[1]] : des[ref[1]]);
-    return { org, hub, des, enlaces: enlaces.map((e, i) => ({ ...e, p0: pt(e.de), p1: pt(e.a), ci: i })) };
+    // Origen i → hub j; hub i → destino j.
+    const conPuntos = todo.map((e) => {
+      const p0 = e.de === 'o' ? org[e.i] : hub[e.i];
+      const p1 = e.a === 'h' ? hub[e.j] : des[e.j];
+      return { ...e, p0, p1 };
+    });
+
+    return { org, hub, des, enlaces: conPuntos };
   }
 
   // t en ticks. cfg suma: { curva, anchoMax, viaDens, viaTam, vel, amp }.
   function frame(L, t, cfg) {
     const ops = [];
-    const TAU = Math.PI * 2;
 
-    // Ticks de estrato (líneas cortas).
+    // Ticks de estrato (largo propio por puerto).
     const tick = (p) => {
-      ops.push({ k: 'line', x1: p.x - 0.02, y1: p.y, x2: p.x + 0.02, y2: p.y, c: 'tinta' });
+      const hl = 0.012 + 0.014 * p.tl;
+      ops.push({ k: 'line', x1: p.x - hl, y1: p.y, x2: p.x + hl, y2: p.y, c: 'tinta' });
     };
     L.org.forEach(tick);
     L.hub.forEach(tick);
@@ -82,14 +118,16 @@ const Sankey = (() => {
 
     L.enlaces.forEach((e) => {
       const dy = e.p1.y - e.p0.y;
-      const drift = cfg.amp * 0.03 * Math.sin(t * 0.1 + e.ph * TAU);
-      const c1 = [e.p0.x + drift, e.p0.y + dy * cfg.curva];
-      const c2 = [e.p1.x - drift, e.p1.y - dy * cfg.curva];
-      const w = cfg.anchoMax * (0.15 + 0.85 * e.v) * (1 + cfg.amp * 0.25 * Math.sin(t * 0.13 + e.ph * TAU));
+      // Errar por ruido: deriva de controles + respiro de anchos.
+      const drift = cfg.amp * 0.05 * (vnoise(t * 0.04 + e.ph * 13.7) - 0.5) * 2;
+      const resp = (vnoise(t * 0.06 + e.ph * 29.3 + 50) - 0.5) * 2;
+      const c1 = [e.p0.x + drift, e.p0.y + dy * cfg.curva * e.ck];
+      const c2 = [e.p1.x - drift, e.p1.y - dy * cfg.curva * e.ck];
+      const w = cfg.anchoMax * (0.15 + 0.85 * e.v) * (1 + cfg.amp * 0.3 * resp);
       const color = VIVOS[e.ci % VIVOS.length];
       ops.push({ k: 'bezier', pts: [e.p0.x, e.p0.y, c1[0], c1[1], c2[0], c2[1], e.p1.x, e.p1.y], w: Math.max(0.001, w), c: color });
 
-      // Viajeros en color fondo: pulsos que recorren la cinta.
+      // Viajeros en color fondo: pulsos que recorren la cinta (avance lineal).
       const nv = Math.max(0, Math.round(cfg.viaDens * 3));
       for (let k = 0; k < nv; k++) {
         const s = ((t * cfg.vel * (0.02 + 0.02 * e.v) + e.ph + k / Math.max(1, nv)) % 1 + 1) % 1;
@@ -101,7 +139,7 @@ const Sankey = (() => {
     return ops;
   }
 
-  return { mulberry32, cubic, layout, frame, VIVOS };
+  return { mulberry32, cubic, vnoise, layout, frame, VIVOS };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Sankey;
