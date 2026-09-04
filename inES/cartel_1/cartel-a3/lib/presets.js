@@ -113,6 +113,32 @@ const Presets = (() => {
     return { v: 2, nombre: p.nombre, params };
   }
 
+  // ── Esquema p3 (v1; sankey) ────────────────────────────
+  function validarP3(p) {
+    if (!p || typeof p !== 'object') return 'no es un objeto';
+    if (p.v !== 1) return `versión ${p.v} ≠ 1`;
+    if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
+    const q = p.params || {};
+    if (!Number.isInteger(q.nOrg) || q.nOrg < 1 || q.nOrg > 16) return 'nOrg inválido';
+    if (!Number.isInteger(q.nHub) || q.nHub < 1 || q.nHub > 10) return 'nHub inválido';
+    if (!Number.isInteger(q.nDes) || q.nDes < 1 || q.nDes > 24) return 'nDes inválido';
+    if (!Number.isInteger(q.semilla) || q.semilla < 1) return 'semilla inválida';
+    if (!num(q.curva, 0.01, 1.5)) return 'curva fuera de rango';
+    if (!num(q.anchoMax, 0.001, 0.2)) return 'anchoMax fuera de rango';
+    if (!num(q.viaDens, 0, 1)) return 'viaDens fuera de rango';
+    if (!num(q.viaTam, 0.05, 2)) return 'viaTam fuera de rango';
+    if (!Number.isInteger(q.paletaIdx) || q.paletaIdx < 0) return 'paleta inválida';
+    const a = q.anim || {};
+    if (typeof a.on !== 'boolean') return 'anim.on inválido';
+    if (!num(a.vel, 0, 5)) return 'anim.vel fuera de rango';
+    if (!num(a.amp, 0, 1)) return 'anim.amp fuera de rango';
+    return null;
+  }
+
+  function normalizarP3(p) {
+    return validarP3(p) ? null : p;
+  }
+
   // ── Factoría de ámbitos ────────────────────────────────
   function crearAmbito(key, version, validarDoc, normalizarDoc) {
     function leer() {
@@ -178,9 +204,10 @@ const Presets = (() => {
 
   const p1 = crearAmbito('p1-presets', 2, validarP1, normalizarP1);
   const p2 = crearAmbito('p2-presets', 2, validarP2, normalizarP2);
+  const p3 = crearAmbito('p3-presets', 1, validarP3, normalizarP3);
 
   // Nivel superior = esquema p1 (p1/sketch.js no cambia).
-  return { ...p1, DEFAULT_PRIM, DEFAULT_VISTA, p1, p2 };
+  return { ...p1, DEFAULT_PRIM, DEFAULT_VISTA, p1, p2, p3 };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Presets;

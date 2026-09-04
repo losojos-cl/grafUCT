@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "presets": [
+    {
+      "v": 1,
+      "nombre": "sankey",
+      "params": {
+        "nOrg": 8,
+        "nHub": 4,
+        "nDes": 10,
+        "semilla": 7,
+        "curva": 0.4,
+        "anchoMax": 0.03,
+        "viaDens": 0.7,
+        "viaTam": 0.5,
+        "paletaIdx": 2,
+        "anim": { "on": false, "vel": 1, "amp": 0.6 }
+      }
+    }
+  ]
+}
