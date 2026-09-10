@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "presets": [
+    {
+      "v": 1,
+      "nombre": "flora",
+      "params": {
+        "nOrg": 8,
+        "nHub": 4,
+        "nDes": 10,
+        "semilla": 7,
+        "soltura": 0.7,
+        "curva": 0.45,
+        "anchoMax": 0.035,
+        "hojas": 0.7,
+        "florTam": 1,
+        "viaDens": 0.5,
+        "viaTam": 0.5,
+        "paletaIdx": 2,
+        "anim": { "on": false, "vel": 1, "amp": 0.6 },
+        "perm": [0, 1, 2, 3, 4]
+      }
+    }
+  ]
+}
