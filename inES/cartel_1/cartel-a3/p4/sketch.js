@@ -57,7 +57,7 @@ function renderar(g) {
     circle: cuenta((x, y, d) => g.circle(x, y, d)),
     line: cuenta((x1, y1, x2, y2) => g.line(x1, y1, x2, y2)),
   } : {
-    background, noStroke, fill, stroke, strokeWeight, strokeCap,
+    background, noStroke, noFill, fill, stroke, strokeWeight, strokeCap,
     circle: cuenta(circle), line: cuenta(line),
   };
 
