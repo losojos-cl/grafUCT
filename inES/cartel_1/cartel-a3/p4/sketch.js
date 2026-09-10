@@ -53,7 +53,8 @@ function renderar(g) {
     fill: (c) => g.fill(c),
     stroke: (c) => g.stroke(c),
     strokeWeight: (w) => g.strokeWeight(w),
-    strokeCap: (s) => g.strokeCap(s),
+    // strokeCap no existe en el renderer SVG → try/catch (exporta con butt).
+    strokeCap: (s) => { try { g.strokeCap(s); } catch (e) { /* butt por defecto */ } },
     circle: cuenta((x, y, d) => g.circle(x, y, d)),
     line: cuenta((x1, y1, x2, y2) => g.line(x1, y1, x2, y2)),
   } : {
