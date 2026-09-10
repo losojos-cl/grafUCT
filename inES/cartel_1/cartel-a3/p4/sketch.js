@@ -1,5 +1,5 @@
-// P4 — Sankey vegetal: tallos, hojas, flores y savia en A3 a sangre completa.
-// Sobre el layout de lib/sankey.js, render botánico de flora.js.
+// P4 — Árbol generativo: ramificación recursiva en A3 a sangre completa.
+// Troncos abajo → copa arriba, código de color por rama, brotes terminales.
 // Sin texto. Colores vía Tema (roles); default Noche/Señal.
 // Atajos: S guardar · R semilla · C paleta · B barajar · Espacio play/pausa.
 //
@@ -10,23 +10,19 @@ const W = 297 * MM_TO_PT; // ≈ 841.89
 const H = 420 * MM_TO_PT; // ≈ 1190.55
 
 const P4 = {
-  nOrg: 8,
-  nHub: 4,
-  nDes: 10,
+  troncos: 2,
+  profundidad: 5,
+  hijos: 2.4, // 2..3 (fracción = prob. de tercer hijo)
+  angulo: 0.45, // apertura de bifurcación (rad)
+  decaimiento: 0.72, // largo hijo / largo padre
+  grosor: 0.02, // fracción del ancho (tronco)
   semilla: 7,
-  soltura: 0.7, // 0 = retícula estricta … 1 = suelto
-  curva: 0.45,
-  anchoMax: 0.035, // fracción del ancho (tallo base)
-  hojas: 0.7, // densidad 0..1
-  florTam: 1, // escala flores/frutos
-  viaDens: 0.5,
-  viaTam: 0.5,
   anim: { on: false, vel: 1, amp: 0.6 },
 };
 
 const T4 = { t: 0 }; // reloj de animación
 const FPS_P4 = 15;
-let LAYOUT = null; // caché (se reconstruye con niveles/semilla/soltura)
+let ARBOL = null; // caché (se reconstruye con forma/semilla)
 
 function setup() {
   Tema.init();
@@ -41,19 +37,10 @@ function setup() {
 }
 
 function reconstruir() {
-  LAYOUT = Sankey.layout({
-    nOrg: P4.nOrg, nHub: P4.nHub, nDes: P4.nDes, semilla: P4.semilla,
-    soltura: P4.soltura,
+  ARBOL = Arbol.crecer(P4.semilla, {
+    troncos: P4.troncos, profundidad: P4.profundidad, hijos: P4.hijos,
+    angulo: P4.angulo, decaimiento: P4.decaimiento, grosor: P4.grosor,
   });
-}
-
-function cfgFrame() {
-  return {
-    curva: P4.curva, anchoMax: P4.anchoMax,
-    hojas: P4.hojas, florTam: P4.florTam,
-    viaDens: P4.viaDens, viaTam: P4.viaTam,
-    vel: P4.anim.vel, amp: P4.anim.amp,
-  };
 }
 
 // g === null → canvas principal. Devuelve { nodos }.
@@ -63,38 +50,32 @@ function renderar(g) {
   const R = g ? {
     background: (c) => g.background(c),
     noStroke: () => g.noStroke(),
-    noFill: () => g.noFill(),
     fill: (c) => g.fill(c),
     stroke: (c) => g.stroke(c),
     strokeWeight: (w) => g.strokeWeight(w),
-    push: () => g.push(),
-    pop: () => g.pop(),
-    translate: (x, y) => g.translate(x, y),
-    rotate: (a) => g.rotate(a),
+    strokeCap: (s) => g.strokeCap(s),
     circle: cuenta((x, y, d) => g.circle(x, y, d)),
-    ellipse: cuenta((x, y, w, h) => g.ellipse(x, y, w, h)),
+    line: cuenta((x1, y1, x2, y2) => g.line(x1, y1, x2, y2)),
   } : {
-    background, noStroke, noFill, fill, stroke, strokeWeight, push, pop, translate, rotate,
-    circle: cuenta(circle), ellipse: cuenta(ellipse),
+    background, noStroke, fill, stroke, strokeWeight, strokeCap,
+    circle: cuenta(circle), line: cuenta(line),
   };
 
   R.background(Tema.rol('fondo'));
-  R.noStroke();
+  R.noFill();
+  R.strokeCap(ROUND);
 
-  const ops = Flora.frame(LAYOUT, T4.t, cfgFrame());
+  const ops = Arbol.frame(ARBOL, T4.t, P4.anim.amp);
   for (const o of ops) {
-    if (o.k === 'circle') {
+    if (o.k === 'line') {
+      R.stroke(Tema.rol(o.c));
+      R.strokeWeight(Math.max(0.5, o.w * W));
+      R.line(o.x0 * W, o.y0 * H, o.x1 * W, o.y1 * H);
+    } else {
       R.noStroke();
       R.fill(Tema.rol(o.c));
       R.circle(o.x * W, o.y * H, Math.max(1, o.d * W));
-    } else if (o.k === 'ellipse') {
-      if (o.f === 1) { R.noStroke(); R.fill(Tema.rol(o.c)); }
-      else { R.noFill(); R.stroke(Tema.rol(o.c)); R.strokeWeight(2); }
-      R.ellipse(o.x * W, o.y * H, Math.max(1, o.w * W), Math.max(1, o.h * W));
-    } else if (o.k === 'push') R.push();
-    else if (o.k === 'pop') R.pop();
-    else if (o.k === 'translate') R.translate(o.x * W, o.y * H);
-    else if (o.k === 'rotate') R.rotate(o.a);
+    }
   }
 
   return { nodos };
@@ -104,15 +85,15 @@ function draw() {
   if (P4.anim.on) T4.t += P4.anim.vel;
   const { nodos } = renderar(null);
   const extra = P4.anim.on ? ` · t=${T4.t.toFixed(1)} · ${getFrameRate().toFixed(1)}fps` : '';
-  print(`P4 · ${P4.nOrg}/${P4.nHub}/${P4.nDes} · ${nodos} nodos · paleta “${Tema.paleta.nombre}”${extra}`);
+  print(`P4 · ${P4.troncos}×prof${P4.profundidad} · ${nodos} nodos · paleta “${Tema.paleta.nombre}”${extra}`);
 }
 
 function guardarSVG() {
   const svg = createGraphics(W, H, SVG);
   const { nodos } = renderar(svg);
-  save(svg, 'p4-flora.svg'); // p5.svg enruta Graphics+SVG → saveSVG
+  save(svg, 'p4-arbol.svg'); // p5.svg enruta Graphics+SVG → saveSVG
   svg.remove();
-  print(`SVG guardado: p4-flora.svg (${nodos} nodos)`);
+  print(`SVG guardado: p4-arbol.svg (${nodos} nodos)`);
 }
 
 // ── Animación ──────────────────────────────────────────
@@ -128,23 +109,19 @@ function setPlay(on) {
   }
 }
 
-// ── Presets (esquema p4) ───────────────────────────────
+// ── Presets (esquema p4 v2) ────────────────────────────
 function estadoActual(nombre) {
   return {
     v: Presets.p4.VERSION,
     nombre,
     params: {
-      nOrg: P4.nOrg,
-      nHub: P4.nHub,
-      nDes: P4.nDes,
+      troncos: P4.troncos,
+      profundidad: P4.profundidad,
+      hijos: P4.hijos,
+      angulo: P4.angulo,
+      decaimiento: P4.decaimiento,
+      grosor: P4.grosor,
       semilla: P4.semilla,
-      soltura: P4.soltura,
-      curva: P4.curva,
-      anchoMax: P4.anchoMax,
-      hojas: P4.hojas,
-      florTam: P4.florTam,
-      viaDens: P4.viaDens,
-      viaTam: P4.viaTam,
       paletaIdx: Tema.paletaIdx,
       anim: { ...P4.anim },
       perm: Tema.getPerm(),
@@ -156,19 +133,16 @@ function aplicarEstado(est) {
   const q0 = Presets.p4.normalizar(est);
   if (!q0) { print(`Preset “${est && est.nombre}” inválido`); return; }
   const q = q0.params;
-  const rearmar = q.nOrg !== P4.nOrg || q.nHub !== P4.nHub || q.nDes !== P4.nDes ||
-    q.semilla !== P4.semilla || q.soltura !== P4.soltura;
-  P4.nOrg = q.nOrg;
-  P4.nHub = q.nHub;
-  P4.nDes = q.nDes;
+  const rearmar = q.troncos !== P4.troncos || q.profundidad !== P4.profundidad ||
+    q.hijos !== P4.hijos || q.angulo !== P4.angulo || q.decaimiento !== P4.decaimiento ||
+    q.grosor !== P4.grosor || q.semilla !== P4.semilla;
+  P4.troncos = q.troncos;
+  P4.profundidad = q.profundidad;
+  P4.hijos = q.hijos;
+  P4.angulo = q.angulo;
+  P4.decaimiento = q.decaimiento;
+  P4.grosor = q.grosor;
   P4.semilla = q.semilla;
-  P4.soltura = q.soltura;
-  P4.curva = q.curva;
-  P4.anchoMax = q.anchoMax;
-  P4.hojas = q.hojas;
-  P4.florTam = q.florTam;
-  P4.viaDens = q.viaDens;
-  P4.viaTam = q.viaTam;
   P4.anim = { ...q.anim };
   Tema.setPaleta(q.paletaIdx);
   if (q.perm) Tema.setPerm(q.perm);
@@ -218,7 +192,7 @@ function sembrarDefecto() {
       const res = Presets.p4.importar(txt);
       renderListaPresets();
       const lista = Presets.p4.listar();
-      const alvo = lista.find((p) => p.nombre === 'flora') || lista[0];
+      const alvo = lista.find((p) => p.nombre === 'arbol') || lista[0];
       if (alvo) aplicarEstado(alvo);
       print(`Presets de defecto: ${res.ok} importados · errores: ${res.errores.length}`);
     })
@@ -236,20 +210,12 @@ function cablearPanel() {
   const rearmar = (id, clave) => {
     $(id).oninput = (e) => { P4[clave] = +e.target.value; reconstruir(); syncEtiquetas(); redraw(); };
   };
-  rearmar('inNOrg', 'nOrg');
-  rearmar('inNHub', 'nHub');
-  rearmar('inNDes', 'nDes');
-  rearmar('inSoltura', 'soltura');
-
-  const liga = (id, clave) => {
-    $(id).oninput = (e) => { P4[clave] = +e.target.value; syncEtiquetas(); redraw(); };
-  };
-  liga('inCurva', 'curva');
-  liga('inAncho', 'anchoMax');
-  liga('inHojas', 'hojas');
-  liga('inFlor', 'florTam');
-  liga('inViaDens', 'viaDens');
-  liga('inViaTam', 'viaTam');
+  rearmar('inTroncos', 'troncos');
+  rearmar('inProf', 'profundidad');
+  rearmar('inHijos', 'hijos');
+  rearmar('inAngulo', 'angulo');
+  rearmar('inDecaim', 'decaimiento');
+  rearmar('inGrosor', 'grosor');
 
   $('inSemilla').onchange = (e) => { fijaSemilla(+e.target.value || 1); };
   $('btnSemilla').onclick = () => fijaSemilla(Math.floor(Math.random() * 9999) + 1);
@@ -300,16 +266,12 @@ function fijaSemilla(s) {
 }
 
 function syncEtiquetas() {
-  $('vNOrg').textContent = P4.nOrg;
-  $('vNHub').textContent = P4.nHub;
-  $('vNDes').textContent = P4.nDes;
-  $('vSoltura').textContent = P4.soltura.toFixed(2);
-  $('vCurva').textContent = P4.curva.toFixed(2);
-  $('vAncho').textContent = P4.anchoMax.toFixed(3);
-  $('vHojas').textContent = P4.hojas.toFixed(2);
-  $('vFlor').textContent = P4.florTam.toFixed(2);
-  $('vViaDens').textContent = P4.viaDens.toFixed(2);
-  $('vViaTam').textContent = P4.viaTam.toFixed(2);
+  $('vTroncos').textContent = P4.troncos;
+  $('vProf').textContent = P4.profundidad;
+  $('vHijos').textContent = P4.hijos.toFixed(1);
+  $('vAngulo').textContent = P4.angulo.toFixed(2);
+  $('vDecaim').textContent = P4.decaimiento.toFixed(2);
+  $('vGrosor').textContent = P4.grosor.toFixed(3);
   $('vSemilla').textContent = P4.semilla;
   $('vVel').textContent = P4.anim.vel.toFixed(1);
   $('vAmp').textContent = P4.anim.amp.toFixed(2);
@@ -317,16 +279,12 @@ function syncEtiquetas() {
 
 function syncPanel() {
   $('selPaleta').value = Tema.paletaIdx;
-  $('inNOrg').value = P4.nOrg;
-  $('inNHub').value = P4.nHub;
-  $('inNDes').value = P4.nDes;
-  $('inSoltura').value = P4.soltura;
-  $('inCurva').value = P4.curva;
-  $('inAncho').value = P4.anchoMax;
-  $('inHojas').value = P4.hojas;
-  $('inFlor').value = P4.florTam;
-  $('inViaDens').value = P4.viaDens;
-  $('inViaTam').value = P4.viaTam;
+  $('inTroncos').value = P4.troncos;
+  $('inProf').value = P4.profundidad;
+  $('inHijos').value = P4.hijos;
+  $('inAngulo').value = P4.angulo;
+  $('inDecaim').value = P4.decaimiento;
+  $('inGrosor').value = P4.grosor;
   $('inSemilla').value = P4.semilla;
   $('inVel').value = P4.anim.vel;
   $('inAmp').value = P4.anim.amp;

@@ -165,23 +165,26 @@ const Presets = (() => {
     return { v: 3, nombre: p.nombre, params };
   }
 
-  // ── Esquema p4 (v1; flora) ─────────────────────────────
+  // ── Esquema p4 (v2; v1 sankey se normaliza a defaults) ──
+  const DEFAULT_P4V2 = {
+    troncos: 2, profundidad: 5, hijos: 2.4,
+    angulo: 0.45, decaimiento: 0.72, grosor: 0.02, semilla: 7,
+  };
+
   function validarP4(p) {
     if (!p || typeof p !== 'object') return 'no es un objeto';
-    if (p.v !== 1) return `versión ${p.v} ≠ 1`;
+    if (p.v !== 1 && p.v !== 2) return `versión ${p.v} ≠ 1/2`;
     if (typeof p.nombre !== 'string' || !p.nombre.trim()) return 'sin nombre';
     const q = p.params || {};
-    if (!Number.isInteger(q.nOrg) || q.nOrg < 1 || q.nOrg > 16) return 'nOrg inválido';
-    if (!Number.isInteger(q.nHub) || q.nHub < 1 || q.nHub > 10) return 'nHub inválido';
-    if (!Number.isInteger(q.nDes) || q.nDes < 1 || q.nDes > 24) return 'nDes inválido';
+    if (p.v === 2) {
+      if (!Number.isInteger(q.troncos) || q.troncos < 1 || q.troncos > 4) return 'troncos inválido';
+      if (!Number.isInteger(q.profundidad) || q.profundidad < 1 || q.profundidad > 8) return 'profundidad inválida';
+      if (!num(q.hijos, 2, 3)) return 'hijos fuera de rango';
+      if (!num(q.angulo, 0.05, 1.5)) return 'angulo fuera de rango';
+      if (!num(q.decaimiento, 0.3, 0.95)) return 'decaimiento fuera de rango';
+      if (!num(q.grosor, 0.002, 0.08)) return 'grosor fuera de rango';
+    }
     if (!Number.isInteger(q.semilla) || q.semilla < 1) return 'semilla inválida';
-    if (!num(q.soltura, 0, 1)) return 'soltura fuera de rango';
-    if (!num(q.curva, 0.01, 1.5)) return 'curva fuera de rango';
-    if (!num(q.anchoMax, 0.001, 0.2)) return 'anchoMax fuera de rango';
-    if (!num(q.hojas, 0, 1)) return 'hojas fuera de rango';
-    if (!num(q.florTam, 0.1, 3)) return 'florTam fuera de rango';
-    if (!num(q.viaDens, 0, 1)) return 'viaDens fuera de rango';
-    if (!num(q.viaTam, 0.05, 2)) return 'viaTam fuera de rango';
     if (!Number.isInteger(q.paletaIdx) || q.paletaIdx < 0) return 'paleta inválida';
     const a = q.anim || {};
     if (typeof a.on !== 'boolean') return 'anim.on inválido';
@@ -191,7 +194,10 @@ const Presets = (() => {
   }
 
   function normalizarP4(p) {
-    return validarP4(p) ? null : p;
+    if (validarP4(p)) return null;
+    if (p.v === 2) return p;
+    const params = { ...DEFAULT_P4V2, semilla: p.params.semilla, paletaIdx: p.params.paletaIdx, anim: { ...p.params.anim }, perm: [...DEFAULT_PERM] };
+    return { v: 2, nombre: p.nombre, params };
   }
 
   // ── Factoría de ámbitos ────────────────────────────────
@@ -260,7 +266,7 @@ const Presets = (() => {
   const p1 = crearAmbito('p1-presets', 3, validarP1, normalizarP1);
   const p2 = crearAmbito('p2-presets', 3, validarP2, normalizarP2);
   const p3 = crearAmbito('p3-presets', 3, validarP3, normalizarP3);
-  const p4 = crearAmbito('p4-presets', 1, validarP4, normalizarP4);
+  const p4 = crearAmbito('p4-presets', 2, validarP4, normalizarP4);
 
   // Nivel superior = esquema p1 (p1/sketch.js no cambia).
   return { ...p1, DEFAULT_PRIM, DEFAULT_VISTA, DEFAULT_PERM, p1, p2, p3, p4 };
