@@ -50,6 +50,7 @@ function renderar(g) {
   const R = g ? {
     background: (c) => g.background(c),
     noStroke: () => g.noStroke(),
+    noFill: () => g.noFill(),
     fill: (c) => g.fill(c),
     stroke: (c) => g.stroke(c),
     strokeWeight: (w) => g.strokeWeight(w),
