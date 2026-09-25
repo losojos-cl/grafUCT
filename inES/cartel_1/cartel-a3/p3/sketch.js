@@ -125,6 +125,65 @@ function setPlay(on) {
   }
 }
 
+// ── Grabación WebM (MediaRecorder sobre el canvas 2D) ──
+let grabando = null; // { rec, chunks, t0, segs, timer, tick, habiaPlay }
+
+function mimeSoportado() {
+  const cand = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+  return cand.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+}
+
+function grabarVideo() {
+  if (grabando) { print('Ya grabando…'); return; }
+  const lienzo = document.querySelector('#lienzo canvas');
+  if (!lienzo || !lienzo.captureStream) { print('captureStream no soportado en este navegador'); return; }
+  if (typeof MediaRecorder === 'undefined') { print('MediaRecorder no soportado'); return; }
+  const segs = Math.min(60, Math.max(2, +$('inSegs').value || 5));
+  const stream = lienzo.captureStream(30);
+  const mimeType = mimeSoportado();
+  let rec;
+  try {
+    rec = new MediaRecorder(stream, {
+      ...(mimeType ? { mimeType } : {}),
+      videoBitsPerSecond: 8000000,
+    });
+  } catch (e) { print(`No se pudo iniciar grabación: ${e.message}`); return; }
+
+  const habiaPlay = P3.anim.on;
+  if (!habiaPlay) setPlay(true);
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    clearInterval(grabando.tick);
+    const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `p3-sankey-${Date.now()}.webm`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    print(`Video guardado: ${a.download} (${(blob.size / 1024).toFixed(0)} KB · ${segs}s)`);
+    $('btnGrabar').disabled = false;
+    $('btnGrabar').textContent = '● Grabar WebM (V)';
+    $('estadoGrab').textContent = '';
+    if (!habiaPlay) setPlay(false);
+    grabando = null;
+  };
+
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    const rest = segs - (Date.now() - t0) / 1000;
+    $('estadoGrab').textContent = rest > 0 ? `● ${rest.toFixed(1)}s…` : '';
+  }, 100);
+  const timer = setTimeout(() => { try { rec.stop(); } catch (e) { /* ya parado */ } }, segs * 1000);
+
+  grabando = { rec, chunks, t0, segs, timer, tick, habiaPlay };
+  $('btnGrabar').disabled = true;
+  $('btnGrabar').textContent = '● Grabando…';
+  rec.start(200);
+  print(`Grabando ${segs}s…`);
+}
+
 // ── Presets (esquema p3) ───────────────────────────────
 function estadoActual(nombre) {
   return {
@@ -247,6 +306,7 @@ function cablearPanel() {
   $('btnPlay').onclick = () => setPlay(!P3.anim.on);
   $('inVel').oninput = (e) => { P3.anim.vel = +e.target.value; syncEtiquetas(); };
   $('inAmp').oninput = (e) => { P3.anim.amp = +e.target.value; syncEtiquetas(); };
+  $('btnGrabar').onclick = () => grabarVideo();
 
   $('btnGuardarPreset').onclick = () => {
     const nombre = $('inPresetNombre').value.trim() || `preset-${Date.now() % 100000}`;
@@ -322,6 +382,7 @@ function syncPanel() {
 
 function keyPressed() {
   if (key === ' ') { setPlay(!P3.anim.on); return false; }
+  if (key === 'v' || key === 'V') { grabarVideo(); return false; }
   if (key === 'b' || key === 'B') { Tema.barajar(); redraw(); }
   else if (key === 's' || key === 'S') guardarSVG();
   else if (key === 'c' || key === 'C') { Tema.ciclarPaleta(); syncPanel(); redraw(); }
